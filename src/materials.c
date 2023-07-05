@@ -24,15 +24,15 @@ Material createMaterial(GLuint program, boolval drawWithMatrices, boolval drawWi
 	return mat;
 }
 
-void deleteMaterial(Material mat)
+void deleteMaterial(Material* mat)
 {
-	deleteDynamicArray(mat.floatData);
-	deleteDynamicArray(mat.vec3fData);
-	deleteDynamicArray(mat.textureData);
+	deleteDynamicArray(mat->floatData);
+	deleteDynamicArray(mat->vec3fData);
+	deleteDynamicArray(mat->textureData);
 
-	deleteDynamicArray(mat.floatDataUniformNames);
-	deleteDynamicArray(mat.vec3fDataUniformNames);
-	deleteDynamicArray(mat.textureDataUniformNames);
+	deleteDynamicArray(mat->floatDataUniformNames);
+	deleteDynamicArray(mat->vec3fDataUniformNames);
+	deleteDynamicArray(mat->textureDataUniformNames);
 }
 
 void copyFloatAsUniform(Material* mat, char* uniformName, float data)

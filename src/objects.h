@@ -13,19 +13,22 @@ enum BufferType {
 };
 
 typedef struct PerspectiveObject {
-	vec3 position;
-	vec3 eulerAnglesRotation;
+	Vec3fl position, eulerAnglesRotation;
 
 	GLuint meshVBO, normalsVBO, UVsVBO;
 	size_t vertices;
 	boolval meshInitialized, normalsInitialized, UVsInitialized;
 
-	Material material;
+	Material* material;
 } PerspectiveObject;
 
 void setObjectVBO(PerspectiveObject* objPtr, GLuint vboHandle, enum BufferType type);
 
 void getPerspectiveObjectModelMatrix(PerspectiveObject obj, mat4 out);
 void drawPerspectiveObject(PerspectiveObject obj);
+
+void initializeWorkspace();
+void renderWorkspace();
+PerspectiveObject* createPerspectiveObject();
 
 #endif

@@ -26,27 +26,28 @@ void deleteDynamicArray(DynamicArray arr)
 	if (arr.data) free(arr.data);
 }
 
-void pushDataInDynamicArray(DynamicArray* arr, void* data)
+void* pushDataInDynamicArray(DynamicArray* arr, void* data)
 {
-	++((*arr).usage);
-	if (arr->usage >= arr->size)
-	{
-		(*arr).size *= 2;
-		(*arr).data = realloc(arr->data, arr->dataSizeInBytes * arr->size);
+	const size_t targetIndex = arr->usage;
+	++arr->usage;
+
+	if (arr->usage >= arr->size){
+		arr->size *= 2;
+		arr->data = realloc(arr->data, arr->size*arr->dataSizeInBytes);
 	}
-	memcpy(arr->data + arr->usage - 1, data, arr->dataSizeInBytes);
+	return memcpy((char*)arr->data + targetIndex*arr->dataSizeInBytes, data, arr->dataSizeInBytes);
 }
 
 void removeDataFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp)
 {
-	--((*arr).usage);
+	--(arr->usage);
 	if (freeUp) free(*((void**)(arr->data + index)));
-	memcpy(arr->data + index, arr->data + index + 1, ((arr->usage+1)-(index+1))*arr->dataSizeInBytes);
+	memcpy((char*)arr->data + index*arr->dataSizeInBytes, (char*)arr->data + (index + 1)*arr->dataSizeInBytes, ((arr->usage+1)-(index+1))*(arr->dataSizeInBytes));
 
 	if (arr->size > 10 && arr->usage < arr->size/2)
 	{
-		(*arr).data = realloc(arr->data, arr->size/2);
-		(*arr).size /= 2;
+		arr->size /= 2;
+		arr->data = realloc(arr->data, arr->size*arr->dataSizeInBytes);
 	}
 }
 

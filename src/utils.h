@@ -23,7 +23,7 @@ typedef struct DynamicArray {
 
 DynamicArray createDynamicArray(size_t dataSizeInBytes);
 void deleteDynamicArray(DynamicArray arr);
-void pushDataInDynamicArray(DynamicArray* arr, void* data);
+void* pushDataInDynamicArray(DynamicArray* arr, void* data);
 void removeDataFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp);
 
 char* getFile(const char* path, int* length_out);

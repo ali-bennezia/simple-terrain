@@ -30,7 +30,7 @@ typedef struct Material {
 } Material;
 
 Material createMaterial(GLuint program, boolval drawWithMatrices, boolval drawWithLightData);
-void deleteMaterial(Material mat);
+void deleteMaterial(Material* mat);
 void copyFloatAsUniform(Material* mat, char* uniformName, float data);
 void copyVec3fAsUniform(Material* mat, char* uniformName, Vec3fl data);
 void copyTextureAsUniform(Material* mat, char* uniformName, GLuint textureHandle, int textureIndex);

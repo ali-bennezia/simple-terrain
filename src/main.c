@@ -328,13 +328,8 @@ boolval initialize()
 
 }
 
-PerspectiveObject cube, terrain;
-
 void update()
 {
-	cube.eulerAnglesRotation[0] += 60 * g_deltaTime;
-	cube.eulerAnglesRotation[1] += 60 * g_deltaTime;
-
 	vec3 forward = {0, 0, -1}, backward = {0, 0, 1}, right = {1, 0, 0}, left = {-1, 0, 0};
 
 	rotateDirectionToCameraLookAtDirection(forward, forward);
@@ -380,9 +375,7 @@ void render()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-	drawPerspectiveObject(cube);
-	drawPerspectiveObject(terrain);
+	renderWorkspace();
 }
 
 int main( int argc, char* argv[] )
@@ -393,6 +386,8 @@ int main( int argc, char* argv[] )
 
 	initialize_default_shaders();
 	initialize_default_materials();
+
+	initializeWorkspace();
 
 	set_camera_move_speed(10);
 	set_camera_rotate_speed(1);
@@ -410,18 +405,25 @@ int main( int argc, char* argv[] )
 
 	updateViewMatrix();
 
+
+
+	PerspectiveObject *terrain = createPerspectiveObject();
+
 	float *tquadVertices = NULL, *tquadNormals = NULL;
 	size_t tquadVerticesCount, tquadNormalsCount;
 
 	generateTessellatedQuad(&tquadVertices, &tquadNormals, 10, 100, terrain_heightmap_func, &tquadVerticesCount, &tquadNormalsCount);
 
-	setObjectVBO(&terrain, createAndFillVBO(tquadVertices, tquadVerticesCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
-	setObjectVBO(&terrain, createAndFillVBO(tquadNormals, tquadNormalsCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), NORMALS);
+	setObjectVBO(terrain, createAndFillVBO(tquadVertices, tquadVerticesCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
+	setObjectVBO(terrain, createAndFillVBO(tquadNormals, tquadNormalsCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), NORMALS);
 
-	terrain.material = g_grassTerrainMaterialLit;
-	terrain.vertices = tquadVerticesCount;
+	terrain->material = &g_grassTerrainMaterialLit;
+	terrain->vertices = tquadVerticesCount;
 
 	//crate
+
+	/*PerspectiveObject *cube = createPerspectiveObject();
+
 	float vertices[] = {
 		0.5, 0.5, 0.5, 
 		-0.5, 0.5, 0.5, 
@@ -589,15 +591,14 @@ int main( int argc, char* argv[] )
 		
 	};
 
-	setObjectVBO(&cube, createAndFillVBO(&vertices[0], sizeof(vertices), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
-	setObjectVBO(&cube, createAndFillVBO(&normals[0], sizeof(normals), GL_ARRAY_BUFFER, GL_STATIC_DRAW), NORMALS);
-	setObjectVBO(&cube, createAndFillVBO(&UVs[0], sizeof(UVs), GL_ARRAY_BUFFER, GL_STATIC_DRAW), UVS);
+	setObjectVBO(cube, createAndFillVBO(&vertices[0], sizeof(vertices), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
+	setObjectVBO(cube, createAndFillVBO(&normals[0], sizeof(normals), GL_ARRAY_BUFFER, GL_STATIC_DRAW), NORMALS);
+	setObjectVBO(cube, createAndFillVBO(&UVs[0], sizeof(UVs), GL_ARRAY_BUFFER, GL_STATIC_DRAW), UVS);
 
-	cube.material = g_crateMaterialLit;
+	cube->material = &g_crateMaterialLit;
+	cube->vertices = sizeof(vertices) / (sizeof(float)*3);
 
-	cube.vertices = sizeof(vertices) / (sizeof(float)*3);
-	cube.position[2] = 5;
-	cube.eulerAnglesRotation[1] = 0;
+	cube->position.z = 5;*/
 
 
 	double previousTime = glfwGetTime();
@@ -614,9 +615,9 @@ int main( int argc, char* argv[] )
 		glfwPollEvents();
 	}
 
-	glDeleteBuffers(1, &cube.meshVBO);
-	glDeleteBuffers(1, &cube.normalsVBO);
-	glDeleteBuffers(1, &cube.UVsVBO);
+	/*glDeleteBuffers(1, &cube->meshVBO);
+	glDeleteBuffers(1, &cube->normalsVBO);
+	glDeleteBuffers(1, &cube->UVsVBO);*/
 
 
 	return result;
