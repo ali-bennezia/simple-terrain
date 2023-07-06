@@ -1,6 +1,7 @@
 #include "materials.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 #include "utils.h"
 
@@ -33,20 +34,22 @@ void deleteMaterial(Material* mat)
 	deleteDynamicArray(mat->floatDataUniformNames);
 	deleteDynamicArray(mat->vec3fDataUniformNames);
 	deleteDynamicArray(mat->textureDataUniformNames);
+
+	free(mat);
 }
 
 void copyFloatAsUniform(Material* mat, char* uniformName, float data)
 {
 	char* uniformNameDuplicate = strdup(uniformName);
-	pushDataInDynamicArray(&(mat->floatDataUniformNames), &uniformNameDuplicate);
-	pushDataInDynamicArray(&(mat->floatData), &data);
+	pushDataInDynamicArray(mat->floatDataUniformNames, &uniformNameDuplicate);
+	pushDataInDynamicArray(mat->floatData, &data);
 }
 
 void copyVec3fAsUniform(Material* mat, char* uniformName, Vec3fl data)
 {
 	char* uniformNameDuplicate = strdup(uniformName);
-	pushDataInDynamicArray(&(mat->vec3fDataUniformNames), &uniformNameDuplicate);
-	pushDataInDynamicArray(&(mat->vec3fData), &data);
+	pushDataInDynamicArray(mat->vec3fDataUniformNames, &uniformNameDuplicate);
+	pushDataInDynamicArray(mat->vec3fData, &data);
 }
 
 void copyTextureAsUniform(Material* mat, char* uniformName, GLuint textureHandle, int textureIndex)
@@ -57,8 +60,8 @@ void copyTextureAsUniform(Material* mat, char* uniformName, GLuint textureHandle
 	};
 
 	char* uniformNameDuplicate = strdup(uniformName);
-	pushDataInDynamicArray(&(mat->textureDataUniformNames), &uniformNameDuplicate);
-	pushDataInDynamicArray(&(mat->textureData), &tex);
+	pushDataInDynamicArray(mat->textureDataUniformNames, &uniformNameDuplicate);
+	pushDataInDynamicArray(mat->textureData, &tex);
 }
 
 void copyDataAsUniform(Material* mat, char* uniformName, void* data, enum MaterialUniformType type)

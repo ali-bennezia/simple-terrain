@@ -16,41 +16,41 @@ extern vec3 g_directionalLightDirection;
 extern vec3 g_directionalLightColor;
 extern float g_directionalLightIntensity;
 
-void getPerspectiveObjectModelMatrix(PerspectiveObject obj, mat4 out)
+void getPerspectiveObjectModelMatrix(PerspectiveObject* obj, mat4 out)
 {
 	vec3 xAxis = {1, 0, 0}, yAxis = {0, 1, 0}, zAxis = {0, 0, 1};
 
 	vec3 pos;
-	pos[0] = obj.position.x;
-	pos[1] = obj.position.y;
-	pos[2] = obj.position.z;
+	pos[0] = obj->position.x;
+	pos[1] = obj->position.y;
+	pos[2] = obj->position.z;
 
 	glm_translate_make(out, pos);
-	glm_rotate(out, glm_rad(obj.eulerAnglesRotation.x), xAxis);
-	glm_rotate(out, glm_rad(obj.eulerAnglesRotation.y), yAxis);
-	glm_rotate(out, glm_rad(obj.eulerAnglesRotation.z), zAxis);
+	glm_rotate(out, glm_rad(obj->eulerAnglesRotation.x), xAxis);
+	glm_rotate(out, glm_rad(obj->eulerAnglesRotation.y), yAxis);
+	glm_rotate(out, glm_rad(obj->eulerAnglesRotation.z), zAxis);
 }
 
-void drawPerspectiveObject(PerspectiveObject obj)
+void drawPerspectiveObject(PerspectiveObject* obj)
 {
-	GLuint drawProgram = obj.material->drawProgram;
+	GLuint drawProgram = obj->material->drawProgram;
 
-	if (obj.meshInitialized){
-		glBindBuffer(GL_ARRAY_BUFFER, obj.meshVBO);
+	if (obj->meshInitialized){
+		glBindBuffer(GL_ARRAY_BUFFER, obj->meshVBO);
 
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	}
 
-	if (obj.normalsInitialized){
-		glBindBuffer(GL_ARRAY_BUFFER, obj.normalsVBO);
+	if (obj->normalsInitialized){
+		glBindBuffer(GL_ARRAY_BUFFER, obj->normalsVBO);
 
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	}
 
-	if (obj.UVsInitialized){
-		glBindBuffer(GL_ARRAY_BUFFER, obj.UVsVBO);
+	if (obj->UVsInitialized){
+		glBindBuffer(GL_ARRAY_BUFFER, obj->UVsVBO);
 
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -81,33 +81,33 @@ void drawPerspectiveObject(PerspectiveObject obj)
 	glUniform1f(glGetUniformLocation(drawProgram, "directionalLightIntensity"), g_directionalLightIntensity);
 
 	//Material-specific uniforms
-	for (size_t i = 0; i < obj.material->floatDataUniformNames.usage; ++i)
+	for (size_t i = 0; i < obj->material->floatDataUniformNames->usage; ++i)
 	{
-		char* uniformName = *((char**)obj.material->floatDataUniformNames.data + i);
-		float* data = (float*)obj.material->floatData.data + i;
+		char* uniformName = *((char**)obj->material->floatDataUniformNames->data + i);
+		float* data = (float*)obj->material->floatData->data + i;
 		glUniform1f(glGetUniformLocation(drawProgram, uniformName), *data);
 	}
 
-	for (size_t i = 0; i < obj.material->vec3fDataUniformNames.usage; ++i)
+	for (size_t i = 0; i < obj->material->vec3fDataUniformNames->usage; ++i)
 	{
-		char* uniformName = *((char**)obj.material->vec3fDataUniformNames.data + i);
-		Vec3fl* data = (Vec3fl*)obj.material->vec3fData.data + i;
+		char* uniformName = *((char**)obj->material->vec3fDataUniformNames->data + i);
+		Vec3fl* data = (Vec3fl*)obj->material->vec3fData->data + i;
 		vec3 v3arrdata;
 		v3arrdata[0] = data->x; v3arrdata[1] = data->y; v3arrdata[2] = data->z;
 		glUniform3fv(glGetUniformLocation(drawProgram, uniformName), 1, &v3arrdata[0]);
 	}
 
-	for (size_t i = 0; i < obj.material->textureDataUniformNames.usage; ++i)
+	for (size_t i = 0; i < obj->material->textureDataUniformNames->usage; ++i)
 	{
-		char* uniformName = *((char**)obj.material->textureDataUniformNames.data + i);
-		MaterialTexture* data = (MaterialTexture*)obj.material->textureData.data + i;
+		char* uniformName = *((char**)obj->material->textureDataUniformNames->data + i);
+		MaterialTexture* data = (MaterialTexture*)obj->material->textureData->data + i;
 
 		glActiveTexture(GL_TEXTURE0 + data->textureIndex);
 		glBindTexture(GL_TEXTURE_2D, data->textureHandle);
 		glUniform1i(glGetUniformLocation(drawProgram, uniformName), data->textureIndex);
 	}
 
-	glDrawArrays(GL_TRIANGLES, 0, obj.vertices);
+	glDrawArrays(GL_TRIANGLES, 0, obj->vertices);
 }
 
 void setObjectVBO(PerspectiveObject* objPtr, GLuint vboHandle, enum BufferType type)
@@ -128,29 +128,27 @@ void setObjectVBO(PerspectiveObject* objPtr, GLuint vboHandle, enum BufferType t
 	}
 }
 
-DynamicArray g_workspace;
-boolval g_workspaceInitialized = false;
+DynamicArray* g_workspace = NULL;
 
 void initializeWorkspace()
 {
-	if (g_workspaceInitialized == false) return;
-	g_workspaceInitialized = true;
+	if (g_workspace != NULL) return;
 	g_workspace = createDynamicArray(sizeof(PerspectiveObject));
 }
 
 PerspectiveObject* createPerspectiveObject()
 {
 	PerspectiveObject obj;
-	PerspectiveObject* data = (PerspectiveObject*)pushDataInDynamicArray( &g_workspace, &obj );
+	PerspectiveObject* data = pushDataInDynamicArray( g_workspace, &obj );
 	return data;
 }
 
 void renderWorkspace()
 {
-	PerspectiveObject* iterator = (PerspectiveObject*)(g_workspace.data);
-	for (size_t i = 0; i < g_workspace.usage; ++i){
-		drawPerspectiveObject( *iterator );	
-		++iterator;
+	PerspectiveObject* iterator = (PerspectiveObject*)g_workspace->data;
+	for (size_t i = 0; i < g_workspace->usage; ++i){
+		drawPerspectiveObject( iterator );
+		++iterator;	
 	}
 }
 

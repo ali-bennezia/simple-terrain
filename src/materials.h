@@ -21,9 +21,9 @@ typedef struct Material {
 	GLuint drawProgram;
 
 	//DynArrays of floats & GLuints respectively.
-	DynamicArray floatData, floatDataUniformNames;
-	DynamicArray vec3fData, vec3fDataUniformNames;
-	DynamicArray textureData, textureDataUniformNames;
+	DynamicArray* floatData, *floatDataUniformNames;
+	DynamicArray* vec3fData, *vec3fDataUniformNames;
+	DynamicArray* textureData, *textureDataUniformNames;
 
 	boolval fetchMatrices;
 	boolval fetchLightData;

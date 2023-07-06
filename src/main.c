@@ -598,8 +598,7 @@ int main( int argc, char* argv[] )
 	cube->material = &g_crateMaterialLit;
 	cube->vertices = sizeof(vertices) / (sizeof(float)*3);
 
-	cube->position.z = 5;*/
-
+	cube->position.z = 5;*/	
 
 	double previousTime = glfwGetTime();
 
@@ -618,7 +617,6 @@ int main( int argc, char* argv[] )
 	/*glDeleteBuffers(1, &cube->meshVBO);
 	glDeleteBuffers(1, &cube->normalsVBO);
 	glDeleteBuffers(1, &cube->UVsVBO);*/
-
 
 	return result;
 }

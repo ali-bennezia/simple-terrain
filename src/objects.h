@@ -24,8 +24,8 @@ typedef struct PerspectiveObject {
 
 void setObjectVBO(PerspectiveObject* objPtr, GLuint vboHandle, enum BufferType type);
 
-void getPerspectiveObjectModelMatrix(PerspectiveObject obj, mat4 out);
-void drawPerspectiveObject(PerspectiveObject obj);
+void getPerspectiveObjectModelMatrix(PerspectiveObject* obj, mat4 out);
+void drawPerspectiveObject(PerspectiveObject* obj);
 
 void initializeWorkspace();
 void renderWorkspace();

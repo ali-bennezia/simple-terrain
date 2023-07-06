@@ -10,32 +10,38 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-DynamicArray createDynamicArray(size_t dataSizeInBytes)
+DynamicArray* createDynamicArray(size_t dataSizeInBytes)
 {
-	DynamicArray arr;
-	arr.data = malloc(dataSizeInBytes*10);
-	arr.usage = 0;
-	arr.size = 10;
-	arr.dataSizeInBytes = dataSizeInBytes;
+	DynamicArray *arr = malloc( sizeof(DynamicArray) );
+	arr->data = malloc(dataSizeInBytes*10);
+	arr->usage = 0;
+	arr->size = 10;
+	arr->dataSizeInBytes = dataSizeInBytes;
 
 	return arr;
 }
 
-void deleteDynamicArray(DynamicArray arr)
+void deleteDynamicArray(DynamicArray* arr)
 {
-	if (arr.data) free(arr.data);
+	if (!arr) return;
+	if (arr->data) free(arr->data);
+	free(arr);
 }
 
 void* pushDataInDynamicArray(DynamicArray* arr, void* data)
 {
 	const size_t targetIndex = arr->usage;
-	++arr->usage;
+	
+	arr->usage++;
 
 	if (arr->usage >= arr->size){
 		arr->size *= 2;
 		arr->data = realloc(arr->data, arr->size*arr->dataSizeInBytes);
 	}
-	return memcpy((char*)arr->data + targetIndex*arr->dataSizeInBytes, data, arr->dataSizeInBytes);
+
+	char* destination = (char*)arr->data + targetIndex * arr->dataSizeInBytes;
+
+	memcpy(destination, data, arr->dataSizeInBytes);
 }
 
 void removeDataFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp)
