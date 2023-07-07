@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define _USE_MATH_DEFINES
 #include <math.h>
 
 #include <GL/glew.h>
@@ -39,8 +40,8 @@ float g_directionalLightIntensity, g_ambientLightIntensity;
 
 //Textures, shaders, materials
 GLuint g_crateTexture, g_grassTexture;
-GLuint g_defaultProgram, g_texturedProgram, g_texturedTerrainProgram;
-Material g_untexturedMaterialLit, g_crateMaterialLit, g_grassTerrainMaterialLit;
+GLuint g_defaultProgram, g_texturedProgram, g_texturedTerrainProgram, g_skyQuadProgram;
+Material g_untexturedMaterialLit, g_crateMaterialLit, g_grassTerrainMaterialLit, g_skyQuadMaterialUnlit;
 
 void setAmbientLightColor(float r, float g, float b)
 {
@@ -152,6 +153,7 @@ void set_camera_yaw(float yaw)
 
 void set_camera_pitch(float pitch)
 {
+	pitch = fmin(M_PI_2-0.01, fmax(-M_PI_2+0.01, pitch));
 	g_cameraPitch = pitch;
 	updateViewMatrix();
 }
@@ -252,6 +254,7 @@ void initialize_default_shaders()
 	g_defaultProgram = initialize_program("assets/shaders/default.vert", "assets/shaders/default.frag");
 	g_texturedProgram = initialize_program("assets/shaders/textured.vert", "assets/shaders/textured.frag");
 	g_texturedTerrainProgram = initialize_program("assets/shaders/texturedTerrain.vert", "assets/shaders/texturedTerrain.frag");
+	g_skyQuadProgram = initialize_program("assets/shaders/skyQuad.vert", "assets/shaders/skyQuad.frag");
 }
 
 void initialize_default_materials()
@@ -259,9 +262,10 @@ void initialize_default_materials()
 	g_crateTexture = loadTexture("assets/textures/crate1_diffuse.png");
 	g_grassTexture = loadTexture("assets/textures/grass_diffuse.png");
 
-	g_untexturedMaterialLit = createMaterial(g_defaultProgram, true, true);
-	g_crateMaterialLit = createMaterial(g_texturedProgram, true, true);
-	g_grassTerrainMaterialLit = createMaterial(g_texturedTerrainProgram, true, true);
+	g_untexturedMaterialLit = createMaterial(g_defaultProgram, true, true, false);
+	g_crateMaterialLit = createMaterial(g_texturedProgram, true, true, false);
+	g_grassTerrainMaterialLit = createMaterial(g_texturedTerrainProgram, true, true, false);
+	g_skyQuadMaterialUnlit = createMaterial(g_skyQuadProgram, false, false, true);
 
 
 	//untextured white material
@@ -277,6 +281,11 @@ void initialize_default_materials()
 	copyVec3fAsUniform(&g_grassTerrainMaterialLit, "color", white);
 	copyTextureAsUniform(&g_grassTerrainMaterialLit, "albedoTexture", g_grassTexture, 0);
 	copyFloatAsUniform(&g_grassTerrainMaterialLit, "textureTiles", 1);
+
+	//sky quad material
+	copyFloatAsUniform(&g_skyQuadMaterialUnlit, "cameraFOV", g_cameraFOV);
+	copyFloatAsUniform(&g_skyQuadMaterialUnlit, "cameraAspectRatio", g_aspectRatio);
+	copyFloatAsUniform(&g_skyQuadMaterialUnlit, "cameraPitch", g_cameraPitch);
 }
 
 boolval initialize()
@@ -405,7 +414,23 @@ int main( int argc, char* argv[] )
 
 	updateViewMatrix();
 
+	PerspectiveObject* skyQuad = createPerspectiveObject();
 
+	float skyQuadVertices[] = {
+		1, 1, 0,
+		-1, -1, 0,
+		1, -1, 0,
+
+		1, 1, 0,
+		-1, 1, 0,
+		-1, -1, 0
+	};
+
+	setObjectVBO(skyQuad, createAndFillVBO(&skyQuadVertices[0], 6*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
+
+	skyQuad->material = &g_skyQuadMaterialUnlit;
+	skyQuad->vertices = 6;
+	skyQuad->useDepth = false;
 
 	PerspectiveObject *terrain = createPerspectiveObject();
 
@@ -417,12 +442,15 @@ int main( int argc, char* argv[] )
 	setObjectVBO(terrain, createAndFillVBO(tquadVertices, tquadVerticesCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
 	setObjectVBO(terrain, createAndFillVBO(tquadNormals, tquadNormalsCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), NORMALS);
 
+	free( tquadVertices );
+	free( tquadNormals );
+
 	terrain->material = &g_grassTerrainMaterialLit;
 	terrain->vertices = tquadVerticesCount;
 
 	//crate
 
-	/*PerspectiveObject *cube = createPerspectiveObject();
+	PerspectiveObject *cube = createPerspectiveObject();
 
 	float vertices[] = {
 		0.5, 0.5, 0.5, 
@@ -598,7 +626,7 @@ int main( int argc, char* argv[] )
 	cube->material = &g_crateMaterialLit;
 	cube->vertices = sizeof(vertices) / (sizeof(float)*3);
 
-	cube->position.z = 5;*/	
+	cube->position.z = 5;
 
 	double previousTime = glfwGetTime();
 

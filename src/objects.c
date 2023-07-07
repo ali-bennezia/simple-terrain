@@ -16,6 +16,14 @@ extern vec3 g_directionalLightDirection;
 extern vec3 g_directionalLightColor;
 extern float g_directionalLightIntensity;
 
+extern float g_cameraFOV;
+extern float g_cameraYaw;
+extern float g_cameraPitch;
+
+extern float g_aspectRatio;
+
+extern GLFWwindow* g_window;
+
 void getPerspectiveObjectModelMatrix(PerspectiveObject* obj, mat4 out)
 {
 	vec3 xAxis = {1, 0, 0}, yAxis = {0, 1, 0}, zAxis = {0, 0, 1};
@@ -33,6 +41,10 @@ void getPerspectiveObjectModelMatrix(PerspectiveObject* obj, mat4 out)
 
 void drawPerspectiveObject(PerspectiveObject* obj)
 {
+	if (obj->useDepth)
+		glEnable(GL_DEPTH_TEST);
+	else glDisable(GL_DEPTH_TEST);
+
 	GLuint drawProgram = obj->material->drawProgram;
 
 	if (obj->meshInitialized){
@@ -59,26 +71,44 @@ void drawPerspectiveObject(PerspectiveObject* obj)
 	glUseProgram(drawProgram);
 
 	//Matrices fetch
-	mat4 modelMatrix;
-	getPerspectiveObjectModelMatrix(obj, modelMatrix);
+	if (obj->material->fetchMatrices){
+		mat4 modelMatrix;
+		getPerspectiveObjectModelMatrix(obj, modelMatrix);
 
-	mat4 preNormalMatrix, normalMatrix;
-	glm_mat4_copy(modelMatrix, preNormalMatrix);
-	glm_mat4_transpose(preNormalMatrix);
-	glm_mat4_inv(preNormalMatrix, normalMatrix);
+		mat4 preNormalMatrix, normalMatrix;
+		glm_mat4_copy(modelMatrix, preNormalMatrix);
+		glm_mat4_transpose(preNormalMatrix);
+		glm_mat4_inv(preNormalMatrix, normalMatrix);
 
-	glUniformMatrix4fv(glGetUniformLocation(drawProgram, "normalMatrix"), 1, GL_FALSE, normalMatrix[0]);
-	glUniformMatrix4fv(glGetUniformLocation(drawProgram, "projectionMatrix"), 1, GL_FALSE, g_projectionMatrix[0]);
-	glUniformMatrix4fv(glGetUniformLocation(drawProgram, "viewMatrix"), 1, GL_FALSE, g_viewMatrix[0]);
-	glUniformMatrix4fv(glGetUniformLocation(drawProgram, "modelMatrix"), 1, GL_FALSE, modelMatrix[0]);
+		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "normalMatrix"), 1, GL_FALSE, normalMatrix[0]);
+		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "projectionMatrix"), 1, GL_FALSE, g_projectionMatrix[0]);
+		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "viewMatrix"), 1, GL_FALSE, g_viewMatrix[0]);
+		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "modelMatrix"), 1, GL_FALSE, modelMatrix[0]);
+	}
 
 	//Light data fetch
-	glUniform3fv(glGetUniformLocation(drawProgram, "ambientLightColor"), 1, &g_ambientLightColor[0]);
-	glUniform1f(glGetUniformLocation(drawProgram, "ambientLightIntensity"), g_ambientLightIntensity);
+	if (obj->material->fetchLightData){
+		glUniform3fv(glGetUniformLocation(drawProgram, "ambientLightColor"), 1, &g_ambientLightColor[0]);
+		glUniform1f(glGetUniformLocation(drawProgram, "ambientLightIntensity"), g_ambientLightIntensity);
 
-	glUniform3fv(glGetUniformLocation(drawProgram, "directionalLightDirection"), 1, &g_directionalLightDirection[0]);
-	glUniform3fv(glGetUniformLocation(drawProgram, "directionalLightColor"), 1, &g_directionalLightColor[0]);
-	glUniform1f(glGetUniformLocation(drawProgram, "directionalLightIntensity"), g_directionalLightIntensity);
+		glUniform3fv(glGetUniformLocation(drawProgram, "directionalLightDirection"), 1, &g_directionalLightDirection[0]);
+		glUniform3fv(glGetUniformLocation(drawProgram, "directionalLightColor"), 1, &g_directionalLightColor[0]);
+		glUniform1f(glGetUniformLocation(drawProgram, "directionalLightIntensity"), g_directionalLightIntensity);
+	}
+
+	//Camera & viewport data fetch
+	if (obj->material->fetchCamViewData){
+		glUniform1f(glGetUniformLocation(drawProgram, "cameraFOV"), g_cameraFOV);
+		glUniform1f(glGetUniformLocation(drawProgram, "cameraYaw"), g_cameraYaw);
+		glUniform1f(glGetUniformLocation(drawProgram, "cameraPitch"), g_cameraPitch);
+
+		glUniform1f(glGetUniformLocation(drawProgram, "aspectRatio"), g_aspectRatio);
+
+		int fbSize[2];
+		glfwGetFramebufferSize(g_window, &fbSize[0], &fbSize[1]);
+
+		glUniform2iv(glGetUniformLocation(drawProgram, "viewportDimensions"), 1, &fbSize[0]);
+	}
 
 	//Material-specific uniforms
 	for (size_t i = 0; i < obj->material->floatDataUniformNames->usage; ++i)
@@ -138,7 +168,19 @@ void initializeWorkspace()
 
 PerspectiveObject* createPerspectiveObject()
 {
-	PerspectiveObject obj;
+	PerspectiveObject obj = {
+		{0, 0, 0},
+		{0, 0, 0},
+
+		0, 0, 0,
+		0,
+
+		false, false, false,
+
+		NULL,
+
+		true
+	};
 	PerspectiveObject* data = pushDataInDynamicArray( g_workspace, &obj );
 	return data;
 }

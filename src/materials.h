@@ -27,9 +27,10 @@ typedef struct Material {
 
 	boolval fetchMatrices;
 	boolval fetchLightData;
+	boolval fetchCamViewData;
 } Material;
 
-Material createMaterial(GLuint program, boolval drawWithMatrices, boolval drawWithLightData);
+Material createMaterial(GLuint program, boolval drawWithMatrices, boolval drawWithLightData, boolval fetchCamViewData);
 void deleteMaterial(Material* mat);
 void copyFloatAsUniform(Material* mat, char* uniformName, float data);
 void copyVec3fAsUniform(Material* mat, char* uniformName, Vec3fl data);

@@ -2,7 +2,7 @@
 
 #include <math.h>
 
-#include "libs/perlin.h"
+#include "./../libs/perlin/perlin.h"
 
 float terrain_heightmap_func(float x, float y)
 {

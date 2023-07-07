@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-Material createMaterial(GLuint program, boolval drawWithMatrices, boolval drawWithLightData)
+Material createMaterial(GLuint program, boolval fetchMatrices, boolval fetchLightData, boolval fetchCamViewData)
 {
 	Material mat;
 
@@ -19,8 +19,9 @@ Material createMaterial(GLuint program, boolval drawWithMatrices, boolval drawWi
 	mat.vec3fDataUniformNames = createDynamicArray(sizeof(char*));
 	mat.textureDataUniformNames = createDynamicArray(sizeof(char*));
 
-	mat.fetchMatrices = drawWithMatrices;
-	mat.fetchLightData = drawWithLightData;
+	mat.fetchMatrices = fetchMatrices;
+	mat.fetchLightData = fetchLightData;
+	mat.fetchCamViewData = fetchCamViewData;
 
 	return mat;
 }
