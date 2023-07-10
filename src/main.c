@@ -39,9 +39,9 @@ vec3 g_directionalLightDirection, g_directionalLightColor, g_ambientLightColor;
 float g_directionalLightIntensity, g_ambientLightIntensity;
 
 //Textures, shaders, materials
-GLuint g_crateTexture, g_grassTexture;
+GLuint g_crateTexture, g_grassTexture, g_rockTexture, g_sandTexture;
 GLuint g_defaultProgram, g_texturedProgram, g_texturedTerrainProgram, g_skyQuadProgram;
-Material g_untexturedMaterialLit, g_crateMaterialLit, g_grassTerrainMaterialLit, g_skyQuadMaterialUnlit;
+Material g_untexturedMaterialLit, g_crateMaterialLit, g_defaultTerrainMaterialLit, g_skyQuadMaterialUnlit;
 
 void setAmbientLightColor(float r, float g, float b)
 {
@@ -261,10 +261,12 @@ void initialize_default_materials()
 {
 	g_crateTexture = loadTexture("assets/textures/crate1_diffuse.png");
 	g_grassTexture = loadTexture("assets/textures/grass_diffuse.png");
+	g_rockTexture = loadTexture("assets/textures/rock_diffuse.jpg");
+	g_sandTexture = loadTexture("assets/textures/sand_diffuse.png");
 
 	g_untexturedMaterialLit = createMaterial(g_defaultProgram, true, true, false);
 	g_crateMaterialLit = createMaterial(g_texturedProgram, true, true, false);
-	g_grassTerrainMaterialLit = createMaterial(g_texturedTerrainProgram, true, true, false);
+	g_defaultTerrainMaterialLit = createMaterial(g_texturedTerrainProgram, true, true, false);
 	g_skyQuadMaterialUnlit = createMaterial(g_skyQuadProgram, false, false, true);
 
 
@@ -277,10 +279,10 @@ void initialize_default_materials()
 	copyVec3fAsUniform(&g_crateMaterialLit, "color", white);
 	copyTextureAsUniform(&g_crateMaterialLit, "albedoTexture", g_crateTexture, 0);
 
-	//grass terrain material
-	copyVec3fAsUniform(&g_grassTerrainMaterialLit, "color", white);
-	copyTextureAsUniform(&g_grassTerrainMaterialLit, "albedoTexture", g_grassTexture, 0);
-	copyFloatAsUniform(&g_grassTerrainMaterialLit, "textureTiles", 1);
+	//terrain material
+	copyVec3fAsUniform(&g_defaultTerrainMaterialLit, "color", white);
+	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_sandTexture, 0); //g_grassTexture
+	copyFloatAsUniform(&g_defaultTerrainMaterialLit, "textureTiles", 1);
 
 	//sky quad material
 	copyFloatAsUniform(&g_skyQuadMaterialUnlit, "cameraFOV", g_cameraFOV);
@@ -398,18 +400,18 @@ int main( int argc, char* argv[] )
 
 	initializeWorkspace();
 
-	set_camera_move_speed(10);
+	set_camera_move_speed(50);
 	set_camera_rotate_speed(1);
 	set_camera_position(0, 0, 0);
 	set_camera_yaw(180);
 	set_camera_pitch(0);
 	set_camera_FOV(45);
 
-	setAmbientLightColor(0.2, 0.2, 0.2);
+	setAmbientLightColor(0.4, 0.4, 0.5);
 	setAmbientLightIntensity(1);
 
 	setDirectionalLightDirection(1, -1, 0);
-	setDirectionalLightColor(1, 1, 1);
+	setDirectionalLightColor(0.4, 0.4, 0.5);
 	setDirectionalLightIntensity(1);
 
 	updateViewMatrix();
@@ -432,12 +434,14 @@ int main( int argc, char* argv[] )
 	skyQuad->vertices = 6;
 	skyQuad->useDepth = false;
 
+	//terrain 1
+
 	PerspectiveObject *terrain = createPerspectiveObject();
 
 	float *tquadVertices = NULL, *tquadNormals = NULL;
 	size_t tquadVerticesCount, tquadNormalsCount;
 
-	generateTessellatedQuad(&tquadVertices, &tquadNormals, 10, 100, terrain_heightmap_func, &tquadVerticesCount, &tquadNormalsCount);
+	generateTessellatedQuad(&tquadVertices, &tquadNormals, 10, 500, terrain_heightmap_func, &tquadVerticesCount, &tquadNormalsCount);
 
 	setObjectVBO(terrain, createAndFillVBO(tquadVertices, tquadVerticesCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
 	setObjectVBO(terrain, createAndFillVBO(tquadNormals, tquadNormalsCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), NORMALS);
@@ -445,7 +449,7 @@ int main( int argc, char* argv[] )
 	free( tquadVertices );
 	free( tquadNormals );
 
-	terrain->material = &g_grassTerrainMaterialLit;
+	terrain->material = &g_defaultTerrainMaterialLit;
 	terrain->vertices = tquadVerticesCount;
 
 	//crate
