@@ -7,6 +7,7 @@ extern GLuint g_defaultProgram;
 extern GLuint g_texturedProgram;
 
 extern mat4 g_viewMatrix;
+extern mat4 g_iViewMatrix;
 extern mat4 g_projectionMatrix;
 
 extern vec3 g_ambientLightColor;
@@ -17,6 +18,7 @@ extern vec3 g_directionalLightColor;
 extern float g_directionalLightIntensity;
 
 extern float g_cameraFOV;
+extern float g_cameraVerticalFOV;
 extern float g_cameraYaw;
 extern float g_cameraPitch;
 
@@ -83,6 +85,7 @@ void drawPerspectiveObject(PerspectiveObject* obj)
 		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "normalMatrix"), 1, GL_FALSE, normalMatrix[0]);
 		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "projectionMatrix"), 1, GL_FALSE, g_projectionMatrix[0]);
 		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "viewMatrix"), 1, GL_FALSE, g_viewMatrix[0]);
+		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "iViewMatrix"), 1, GL_FALSE, g_iViewMatrix[0]);
 		glUniformMatrix4fv(glGetUniformLocation(drawProgram, "modelMatrix"), 1, GL_FALSE, modelMatrix[0]);
 	}
 
@@ -99,6 +102,8 @@ void drawPerspectiveObject(PerspectiveObject* obj)
 	//Camera & viewport data fetch
 	if (obj->material->fetchCamViewData){
 		glUniform1f(glGetUniformLocation(drawProgram, "cameraFOV"), g_cameraFOV);
+		glUniform1f(glGetUniformLocation(drawProgram, "cameraVerticalFOV"), g_cameraVerticalFOV);
+
 		glUniform1f(glGetUniformLocation(drawProgram, "cameraYaw"), g_cameraYaw);
 		glUniform1f(glGetUniformLocation(drawProgram, "cameraPitch"), g_cameraPitch);
 

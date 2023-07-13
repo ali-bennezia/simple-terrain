@@ -2,28 +2,23 @@
 
 #define PI 3.1415926538
 
-uniform float cameraFOV;
-uniform float aspectRatio;
-uniform float cameraPitch;
-
-uniform ivec2 viewportDimensions;
+in vec3 unitPlanePosition;
 
 void main()
 {
-	const float toRad = PI/180.0;
+	vec3 unitSphereHitpoint = normalize( unitPlanePosition );
+	vec2 hitpointCoordsXZ = normalize( unitSphereHitpoint.xz );
+	vec2 hitpointCoordsXZY = normalize( vec2( length( unitSphereHitpoint.xz ), unitSphereHitpoint.y ) );
 
-	float verticalFOV = cameraFOV * (1.0/aspectRatio);
-	float verticalFOVrads = verticalFOV*toRad;
-	float verticalHalfFOVrads = verticalFOVrads / 2.0;
+	float hitpointLongitude = atan( hitpointCoordsXZ.y, hitpointCoordsXZ.x );
+	float hitpointLatitude = atan( hitpointCoordsXZY.y, hitpointCoordsXZY.x );
 
-
-	vec3 blueColor = vec3(0.529, 0.807, 0.921);
+	vec3 blueColor = vec3(0.509, 0.787, 0.901);
 	vec3 lightBlueColor = vec3(88.0/100.0, 99.0/100.0, 1);
 
-	vec2 clipCoords = gl_FragCoord.xy / viewportDimensions;
-	float verticalQuotient = pow(clipCoords.y, 2);
+	float verticalQuotient = abs( hitpointLatitude ) / ( PI / 2.0 );
 
-	vec3 finalColor = blueColor*verticalQuotient + lightBlueColor*(1.0-verticalQuotient);
+	vec3 finalColor = (1.0-verticalQuotient)*lightBlueColor + verticalQuotient*blueColor; 
 
 	gl_FragColor = vec4(finalColor, 1);
 }

@@ -21,11 +21,11 @@ GLFWwindow* g_window = NULL;
 float g_aspectRatio = 1;
 
 //Matrices
-mat4 g_projectionMatrix, g_viewMatrix;
+mat4 g_projectionMatrix, g_viewMatrix, g_iViewMatrix;
 
 //Camera params
 vec3 g_cameraPosition;
-float g_cameraYaw, g_cameraPitch, g_cameraFOV, g_cameraRotateSpeed, g_cameraMoveSpeed;
+float g_cameraYaw, g_cameraPitch, g_cameraFOV, g_cameraVerticalFOV, g_cameraRotateSpeed, g_cameraMoveSpeed;
 
 //Game state
 double g_deltaTime;
@@ -39,7 +39,7 @@ vec3 g_directionalLightDirection, g_directionalLightColor, g_ambientLightColor;
 float g_directionalLightIntensity, g_ambientLightIntensity;
 
 //Textures, shaders, materials
-GLuint g_crateTexture, g_grassTexture, g_rockTexture, g_sandTexture;
+GLuint g_crateTexture, g_grassTexture, g_rockTexture, g_sandTexture, g_rock2Texture;
 GLuint g_defaultProgram, g_texturedProgram, g_texturedTerrainProgram, g_skyQuadProgram;
 Material g_untexturedMaterialLit, g_crateMaterialLit, g_defaultTerrainMaterialLit, g_skyQuadMaterialUnlit;
 
@@ -97,9 +97,7 @@ void rotateDirectionToCameraLookAtDirection(vec3 direction, vec3 out)
 	v4dir[2] = direction[2];
 	v4dir[3] = 0;
 	
-	mat4 viewMatrixInverse;
-	glm_mat4_inv(g_viewMatrix, viewMatrixInverse);
-	glm_mat4_mulv(viewMatrixInverse, v4dir, result);
+	glm_mat4_mulv(g_iViewMatrix, v4dir, result);
 
 	out[0] = result[0];
 	out[1] = result[1];
@@ -112,6 +110,7 @@ void updateViewMatrix()
 	getCameraLookAtPosition(lookAt);
 	glm_vec3_add(g_cameraPosition, lookAt, lookAt);
 	glm_lookat(g_cameraPosition, lookAt, up, g_viewMatrix);
+	glm_mat4_inv(g_viewMatrix, g_iViewMatrix);
 }
 
 void updateProjectionMatrix()
@@ -168,9 +167,33 @@ void rotate_camera_pitch(float pitch)
 	set_camera_pitch(g_cameraPitch + pitch);
 }
 
+void update_camera_vertical_FOV()
+{
+	float cameraFOVrads = g_cameraFOV;
+	glm_make_rad( &cameraFOVrads );
+
+	const float i_aspectRatio = 1.0 / g_aspectRatio;
+	const float halfCameraFOVrads = cameraFOVrads / 2.0;
+	const float orthogonalDistance = cos( halfCameraFOVrads );
+	const float horizontalSpan = sin( halfCameraFOVrads );
+	const float verticalSpan = horizontalSpan * i_aspectRatio;
+
+	const float localRadiusLength = sqrt( pow(orthogonalDistance, 2) + pow(verticalSpan, 2) );
+	const float normalizedVerticalSpan = verticalSpan / localRadiusLength;
+
+	const float halfVerticalFOVrads = asin( normalizedVerticalSpan );
+	float resVerticalFOV = halfVerticalFOVrads * 2;
+
+	glm_make_deg( &resVerticalFOV );
+
+	g_cameraVerticalFOV = resVerticalFOV;
+}
+
 void set_camera_FOV(float FOV)
 {
 	g_cameraFOV = FOV;
+
+	update_camera_vertical_FOV();
 	updateProjectionMatrix();
 }
 
@@ -247,6 +270,7 @@ void handle_window_resize(GLFWwindow* window, int width, int height)
 	glfwGetFramebufferSize(g_window, &w, &h);
 	glViewport(0, 0, w, h);
 	updateProjectionMatrix();
+	update_camera_vertical_FOV();
 }
 
 void initialize_default_shaders()
@@ -262,12 +286,13 @@ void initialize_default_materials()
 	g_crateTexture = loadTexture("assets/textures/crate1_diffuse.png");
 	g_grassTexture = loadTexture("assets/textures/grass_diffuse.png");
 	g_rockTexture = loadTexture("assets/textures/rock_diffuse.jpg");
+	g_rock2Texture = loadTexture("assets/textures/rock2_diffuse.jpg");
 	g_sandTexture = loadTexture("assets/textures/sand_diffuse.png");
 
 	g_untexturedMaterialLit = createMaterial(g_defaultProgram, true, true, false);
 	g_crateMaterialLit = createMaterial(g_texturedProgram, true, true, false);
 	g_defaultTerrainMaterialLit = createMaterial(g_texturedTerrainProgram, true, true, false);
-	g_skyQuadMaterialUnlit = createMaterial(g_skyQuadProgram, false, false, true);
+	g_skyQuadMaterialUnlit = createMaterial(g_skyQuadProgram, true, false, true);
 
 
 	//untextured white material
@@ -281,8 +306,8 @@ void initialize_default_materials()
 
 	//terrain material
 	copyVec3fAsUniform(&g_defaultTerrainMaterialLit, "color", white);
-	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_sandTexture, 0); //g_grassTexture
-	copyFloatAsUniform(&g_defaultTerrainMaterialLit, "textureTiles", 1);
+	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_rock2Texture, 0); //g_grassTexture
+	copyFloatAsUniform(&g_defaultTerrainMaterialLit, "textureTiles", 4);
 
 	//sky quad material
 	copyFloatAsUniform(&g_skyQuadMaterialUnlit, "cameraFOV", g_cameraFOV);
@@ -403,7 +428,7 @@ int main( int argc, char* argv[] )
 	set_camera_move_speed(50);
 	set_camera_rotate_speed(1);
 	set_camera_position(0, 0, 0);
-	set_camera_yaw(180);
+	//set_camera_yaw(180);
 	set_camera_pitch(0);
 	set_camera_FOV(45);
 
