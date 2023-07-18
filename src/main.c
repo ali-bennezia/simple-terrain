@@ -37,11 +37,24 @@ boolval g_exit = false, g_lockMouse = true, g_movementEnabled = true;
 //Light params
 vec3 g_directionalLightDirection, g_directionalLightColor, g_ambientLightColor;
 float g_directionalLightIntensity, g_ambientLightIntensity;
+vec3 g_sunDirection;
 
 //Textures, shaders, materials
 GLuint g_crateTexture, g_grassTexture, g_rockTexture, g_sandTexture, g_rock2Texture;
 GLuint g_defaultProgram, g_texturedProgram, g_texturedTerrainProgram, g_skyQuadProgram;
 Material g_untexturedMaterialLit, g_crateMaterialLit, g_defaultTerrainMaterialLit, g_skyQuadMaterialUnlit;
+
+void setSunDirection(float x, float y, float z)
+{
+	float magnitude = sqrt(x*x + y*y + z*z);
+	if (magnitude == 0) return;
+	float dx = x/magnitude;
+	float dy = y/magnitude;
+	float dz = z/magnitude;
+	g_sunDirection[0] = dx;
+	g_sunDirection[1] = dy;
+	g_sunDirection[2] = dz;
+}
 
 void setAmbientLightColor(float r, float g, float b)
 {
@@ -292,7 +305,7 @@ void initialize_default_materials()
 	g_untexturedMaterialLit = createMaterial(g_defaultProgram, true, true, false);
 	g_crateMaterialLit = createMaterial(g_texturedProgram, true, true, false);
 	g_defaultTerrainMaterialLit = createMaterial(g_texturedTerrainProgram, true, true, false);
-	g_skyQuadMaterialUnlit = createMaterial(g_skyQuadProgram, true, false, true);
+	g_skyQuadMaterialUnlit = createMaterial(g_skyQuadProgram, true, true, true);
 
 
 	//untextured white material
@@ -438,6 +451,8 @@ int main( int argc, char* argv[] )
 	setDirectionalLightDirection(1, -1, 0);
 	setDirectionalLightColor(0.4, 0.4, 0.5);
 	setDirectionalLightIntensity(1);
+
+	setSunDirection(-1, 1, 0);
 
 	updateViewMatrix();
 

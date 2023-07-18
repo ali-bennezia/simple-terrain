@@ -16,6 +16,7 @@ extern float g_ambientLightIntensity;
 extern vec3 g_directionalLightDirection;
 extern vec3 g_directionalLightColor;
 extern float g_directionalLightIntensity;
+extern vec3 g_sunDirection;
 
 extern float g_cameraFOV;
 extern float g_cameraVerticalFOV;
@@ -97,6 +98,8 @@ void drawPerspectiveObject(PerspectiveObject* obj)
 		glUniform3fv(glGetUniformLocation(drawProgram, "directionalLightDirection"), 1, &g_directionalLightDirection[0]);
 		glUniform3fv(glGetUniformLocation(drawProgram, "directionalLightColor"), 1, &g_directionalLightColor[0]);
 		glUniform1f(glGetUniformLocation(drawProgram, "directionalLightIntensity"), g_directionalLightIntensity);
+
+		glUniform3fv(glGetUniformLocation(drawProgram, "sunDirection"), 1, &g_sunDirection[0]);
 	}
 
 	//Camera & viewport data fetch
