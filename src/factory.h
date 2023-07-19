@@ -8,6 +8,8 @@
 Vec3fl neighborNormalsAverage(Vec3fl *a, Vec3fl *b, Vec3fl *c, Vec3fl *d);
 
 int generateTessellatedQuad(
+	float xCoordsOffset,
+	float zCoordsOffset,
 	float** meshDestination, 
 	float** normalsDestination, 
 	unsigned int tessellations, 

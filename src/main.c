@@ -32,7 +32,7 @@ double g_deltaTime;
 double g_mouseX, g_mouseY;
 boolval g_forwardInput = false, g_backwardInput = false, g_leftInput = false, g_rightInput = false;
 vec3 g_cameraVelocity;
-boolval g_exit = false, g_lockMouse = true, g_movementEnabled = true;
+boolval g_exit = false, g_lockMouse = true, g_movementEnabled = true, g_wireframeEnabled = false;
 
 //Light params
 vec3 g_directionalLightDirection, g_directionalLightColor, g_ambientLightColor;
@@ -249,6 +249,12 @@ void handle_key_input(GLFWwindow* window, int key, int scancode, int action, int
 			g_rightInput = true;
 		if (key == GLFW_KEY_A)
 			g_leftInput = true;
+
+		if (key == GLFW_KEY_K){
+			g_wireframeEnabled = !g_wireframeEnabled;
+			glPolygonMode( GL_FRONT_AND_BACK, g_wireframeEnabled ? GL_LINE : GL_FILL );
+		}
+
 	}else if (action == GLFW_RELEASE)
 	{
 		if (key == GLFW_KEY_W)
@@ -481,7 +487,7 @@ int main( int argc, char* argv[] )
 	float *tquadVertices = NULL, *tquadNormals = NULL;
 	size_t tquadVerticesCount, tquadNormalsCount;
 
-	generateTessellatedQuad(&tquadVertices, &tquadNormals, 10, 500, terrain_heightmap_func, &tquadVerticesCount, &tquadNormalsCount);
+	generateTessellatedQuad(terrain->position.x, terrain->position.z, &tquadVertices, &tquadNormals, 8, 500, terrain_heightmap_func, &tquadVerticesCount, &tquadNormalsCount);
 
 	setObjectVBO(terrain, createAndFillVBO(tquadVertices, tquadVerticesCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
 	setObjectVBO(terrain, createAndFillVBO(tquadNormals, tquadNormalsCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), NORMALS);
@@ -491,6 +497,28 @@ int main( int argc, char* argv[] )
 
 	terrain->material = &g_defaultTerrainMaterialLit;
 	terrain->vertices = tquadVerticesCount;
+
+	//terrain 2
+
+	PerspectiveObject *terrain2 = createPerspectiveObject();
+
+	terrain2->position.x += 500;
+
+	float *tquad2Vertices = NULL, *tquad2Normals = NULL;
+	size_t tquad2VerticesCount, tquad2NormalsCount;
+
+	generateTessellatedQuad(terrain2->position.x, terrain2->position.z, &tquad2Vertices, &tquad2Normals, 8, 500, terrain_heightmap_func, &tquad2VerticesCount, &tquad2NormalsCount);
+
+	setObjectVBO(terrain2, createAndFillVBO(tquad2Vertices, tquad2VerticesCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), VERTICES);
+	setObjectVBO(terrain2, createAndFillVBO(tquad2Normals, tquad2NormalsCount*3*sizeof(float), GL_ARRAY_BUFFER, GL_STATIC_DRAW), NORMALS);
+
+	free( tquad2Vertices );
+	free( tquad2Normals );
+
+	terrain2->material = &g_defaultTerrainMaterialLit;
+	terrain2->vertices = tquad2VerticesCount;
+
+
 
 	//crate
 

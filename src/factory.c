@@ -35,6 +35,8 @@ Vec3fl neighborNormalsAverage(Vec3fl *a, Vec3fl *b, Vec3fl *c, Vec3fl *d)
 }
 
 int generateTessellatedQuad(
+	float xCoordsOffset,
+	float zCoordsOffset,
 	float** meshDestination, 
 	float** normalsDestination, 
 	unsigned int tessellations, 
@@ -45,7 +47,7 @@ int generateTessellatedQuad(
 )
 {
 	const size_t sideQuadsAmount = pow(2, tessellations);
-	const float smallestWidth = size / sideQuadsAmount;
+	const float smallestWidth = (float)size / sideQuadsAmount;
 	const size_t totalQuadsAmount = pow(sideQuadsAmount, 2);
 
 	const size_t vertices = totalQuadsAmount*6;
@@ -72,10 +74,10 @@ int generateTessellatedQuad(
 				quadBottomLeftPosition = {quadPositionX, quadPositionZ+smallestWidth}, 
 				quadBottomRightPosition = {quadPositionX+smallestWidth, quadPositionZ+smallestWidth};
 
-			float quadTopLeftHeight = heightMapFunction(quadTopLeftPosition.x, quadTopLeftPosition.y),
-				quadTopRightHeight = heightMapFunction(quadTopRightPosition.x, quadTopRightPosition.y),
-				quadBottomLeftHeight = heightMapFunction(quadBottomLeftPosition.x, quadBottomLeftPosition.y),
-				quadBottomRightHeight = heightMapFunction(quadBottomRightPosition.x, quadBottomRightPosition.y);
+			float quadTopLeftHeight = heightMapFunction(xCoordsOffset + quadTopLeftPosition.x, zCoordsOffset + quadTopLeftPosition.y),
+				quadTopRightHeight = heightMapFunction(xCoordsOffset + quadTopRightPosition.x, zCoordsOffset + quadTopRightPosition.y),
+				quadBottomLeftHeight = heightMapFunction(xCoordsOffset + quadBottomLeftPosition.x, zCoordsOffset + quadBottomLeftPosition.y),
+				quadBottomRightHeight = heightMapFunction(xCoordsOffset + quadBottomRightPosition.x, zCoordsOffset + quadBottomRightPosition.y);
 
 			Vec3fl quadTopLeftPositionVec3fl = {quadTopLeftPosition.x, quadTopLeftHeight, quadTopLeftPosition.y},
 				quadBottomLeftPositionVec3fl = {quadBottomLeftPosition.x, quadBottomLeftHeight, quadBottomLeftPosition.y},
