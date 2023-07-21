@@ -2,7 +2,7 @@ if not exist bin (
 	mkdir bin
 )
 
-gcc -o ./bin/renderer.exe ./src/main.c ./src/utils.c ./src/materials.c ./src/objects.c ./src/factory.c ./src/generation.c ./libs/perlin/perlin.c ^
+gcc -o ./bin/renderer.exe ./src/main.c ./src/utils.c ./src/materials.c ./src/objects.c ./src/factory.c ./src/noises.c ./libs/perlin/perlin.c ^
 -lgdi32 -lopengl32 -lglew32 -lglfw3 -mwindows ^
 -I".\libs\stb_image" ^
 -I".\libs\glew-2.1.0\include" ^

@@ -14,7 +14,7 @@
 #include "materials.h"
 #include "objects.h"
 #include "factory.h"
-#include "generation.h"
+#include "noises.h"
 
 //Window params
 GLFWwindow* g_window = NULL;

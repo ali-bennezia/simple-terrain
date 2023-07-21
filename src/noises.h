@@ -1,5 +1,5 @@
-#ifndef GENERATION_HEADERGUARD
-#define GENERATION_HEADERGUARD
+#ifndef NOISES_HEADERGUARD
+#define NOISES_HEADERGUARD
 
 float perlin_noise2D(float x, float y, int seed, int octaves);
 float ridged_noise2D(float x, float y, int seed);
