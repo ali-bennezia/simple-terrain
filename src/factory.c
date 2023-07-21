@@ -34,6 +34,40 @@ Vec3fl neighborNormalsAverage(Vec3fl *a, Vec3fl *b, Vec3fl *c, Vec3fl *d)
 	return count != 0 ? vec3fl_divide(normal, count) : normal;
 }
 
+Vec3fl getQuadNormal(float xCoordsOffset, float zCoordsOffset, int xQuadCoord, int zQuadCoord, float quadSideSize, float(*heightMapFunction)(float, float))
+{
+	Vec3fl vertexNW = {
+		xQuadCoord * quadSideSize, 
+		0,
+		zQuadCoord * quadSideSize
+	};
+	Vec3fl vertexSW = {
+		xQuadCoord * quadSideSize, 
+		0,
+		( zQuadCoord + 1 ) * quadSideSize
+	};
+	Vec3fl vertexNE = {
+		( xQuadCoord + 1 ) * quadSideSize, 
+		0,
+		zQuadCoord * quadSideSize
+	};
+
+	float heightNW = heightMapFunction( xCoordsOffset + vertexNW.x, zCoordsOffset + vertexNW.z );
+	float heightSW = heightMapFunction( xCoordsOffset + vertexSW.x, zCoordsOffset + vertexSW.z );
+	float heightNE = heightMapFunction( xCoordsOffset + vertexNE.x, zCoordsOffset + vertexNE.z );
+
+	vertexNW.y = heightNW; vertexSW.y = heightSW; vertexNE.y = heightNE;
+
+	Vec3fl quadNormal = vec3fl_normalize(
+		vec3fl_cross(
+			vec3fl_difference( vertexSW, vertexNW ),
+			vec3fl_difference( vertexNE, vertexNW )
+		)
+	);
+
+	return quadNormal;
+}
+
 int generateTessellatedQuad(
 	float xCoordsOffset,
 	float zCoordsOffset,
@@ -129,17 +163,97 @@ int generateTessellatedQuad(
 
 			size_t quadIndex = z*sideQuadsAmount + x;
 
-			Vec3fl  *quadNeighborNormalsNW = (x > 0 && z > 0) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex - sideQuadsAmount - 1) : NULL,
-				*quadNeighborNormalsN = (z > 0) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex - sideQuadsAmount) : NULL,
-				*quadNeighborNormalsNE = (x < (sideQuadsAmount - 1) && z > 0) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex - sideQuadsAmount + 1) : NULL,
+			Vec3fl computedQuadNeighborNormalsNW, computedQuadNeighborNormalsN, computedQuadNeighborNormalsNE,
+				computedQuadNeighborNormalsW, computedQuadNeighborNormalsE, 
+				computedQuadNeighborNormalsSW, computedQuadNeighborNormalsS, computedQuadNeighborNormalsSE; 
+				  
 
-				*quadNeighborNormalsW = (x > 0) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex - 1) : NULL,
+			if ( !( x > 0 && z > 0 ) )
+				computedQuadNeighborNormalsNW = getQuadNormal( 
+					xCoordsOffset, 
+					zCoordsOffset, 
+					x-1,
+					z-1,
+					smallestWidth, heightMapFunction
+				);
+			if ( !( z > 0 ) )
+				computedQuadNeighborNormalsN = getQuadNormal( 
+					xCoordsOffset, 
+					zCoordsOffset, 
+					x,
+					z-1,
+					smallestWidth, heightMapFunction
+				);
+			if ( !( x < (sideQuadsAmount - 1) && z > 0 ) )
+				computedQuadNeighborNormalsNE = getQuadNormal( 
+					xCoordsOffset, 
+					zCoordsOffset, 
+					x+1,
+					z-1,
+					smallestWidth, heightMapFunction
+				);
+
+			if ( !( x > 0 ) )
+				computedQuadNeighborNormalsW = getQuadNormal( 
+					xCoordsOffset, 
+					zCoordsOffset, 
+					x-1,
+					z,
+					smallestWidth, heightMapFunction
+				);
+			if ( !( x < (sideQuadsAmount - 1) ) )
+				computedQuadNeighborNormalsE = getQuadNormal( 
+					xCoordsOffset, 
+					zCoordsOffset, 
+					x+1,
+					z,
+					smallestWidth, heightMapFunction
+				);
+
+			if ( !( x > 0 && z < (sideQuadsAmount - 1) ) )
+				computedQuadNeighborNormalsSW = getQuadNormal( 
+					xCoordsOffset, 
+					zCoordsOffset, 
+					x-1,
+					z+1,
+					smallestWidth, heightMapFunction
+				);
+			if ( !( z < (sideQuadsAmount - 1) ) )
+				computedQuadNeighborNormalsS = getQuadNormal( 
+					xCoordsOffset, 
+					zCoordsOffset, 
+					x,
+					z+1,
+					smallestWidth, heightMapFunction
+				);
+			if ( !( x < (sideQuadsAmount-1) && z < (sideQuadsAmount-1) ) )
+				computedQuadNeighborNormalsSE = getQuadNormal( 
+					xCoordsOffset, 
+					zCoordsOffset, 
+					x+1,
+					z+1,
+					smallestWidth, heightMapFunction
+				);
+
+			Vec3fl  *quadNeighborNormalsNW = (x > 0 && z > 0) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex - sideQuadsAmount - 1) : 
+					&computedQuadNeighborNormalsNW,
+				*quadNeighborNormalsN = (z > 0) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex - sideQuadsAmount) : 
+					&computedQuadNeighborNormalsN,
+				*quadNeighborNormalsNE = (x < (sideQuadsAmount - 1) && z > 0) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex - sideQuadsAmount + 1) : 
+					&computedQuadNeighborNormalsNE,
+
+				*quadNeighborNormalsW = (x > 0) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex - 1) : 
+					&computedQuadNeighborNormalsW,
 				*quadNormals = (Vec3fl*)normalsPrecalculationBuffer + quadIndex,
-				*quadNeighborNormalsE = (x < (sideQuadsAmount - 1)) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex + 1) : NULL,
+				*quadNeighborNormalsE = (x < (sideQuadsAmount - 1)) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex + 1) : 
+					&computedQuadNeighborNormalsE,
 
-				*quadNeighborNormalsSW = (x > 0 && z < (sideQuadsAmount - 1)) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex + sideQuadsAmount - 1) : NULL,
-				*quadNeighborNormalsS = (z < (sideQuadsAmount - 1)) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex + sideQuadsAmount) : NULL,
-				*quadNeighborNormalsSE = (x < (sideQuadsAmount - 1) && z < (sideQuadsAmount - 1)) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex + sideQuadsAmount + 1) : NULL;
+				*quadNeighborNormalsSW = (x > 0 && z < (sideQuadsAmount - 1)) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex + sideQuadsAmount - 1) : 
+					&computedQuadNeighborNormalsSW,
+				*quadNeighborNormalsS = (z < (sideQuadsAmount - 1)) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex + sideQuadsAmount) : 
+					&computedQuadNeighborNormalsS,
+				*quadNeighborNormalsSE = (x < (sideQuadsAmount - 1) && z < (sideQuadsAmount - 1)) ? ((Vec3fl*)normalsPrecalculationBuffer + quadIndex + sideQuadsAmount + 1) : 
+					&computedQuadNeighborNormalsSE;
 
 
 			Vec3fl verticeNWNormal = neighborNormalsAverage(
