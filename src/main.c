@@ -381,8 +381,6 @@ boolval initialize()
 
 	glClearColor(0, 0, 0, 1);
 
-	initialize_generator();
-
 	return false;
 
 }
@@ -429,7 +427,6 @@ void update()
 
 	translate_camera(g_cameraVelocity[0]*g_deltaTime*g_cameraMoveSpeed, g_cameraVelocity[1]*g_deltaTime*g_cameraMoveSpeed, g_cameraVelocity[2]*g_deltaTime*g_cameraMoveSpeed);
 
-	poll_generator();
 }
 
 void render()
@@ -449,6 +446,8 @@ int main( int argc, char* argv[] )
 	initialize_default_materials();
 
 	initializeWorkspace();
+
+	initialize_generator();
 
 	set_camera_move_speed(50);
 	set_camera_rotate_speed(1);
@@ -528,8 +527,10 @@ int main( int argc, char* argv[] )
 
 	*/
 
-	request_generation(0, 0, 500, 8);
-	request_generation(1, 0, 500, 8);
+	request_generation(0, 0, 500, 4);
+	request_generation(1, 0, 500, 4);
+	request_generation(0, 1, 500, 4);
+	request_generation(1, 1, 500, 4);
 
 	//crate
 
@@ -720,6 +721,7 @@ int main( int argc, char* argv[] )
 
 		update();
 		render();
+		poll_generator();
 
 		glfwSwapBuffers(g_window);
 		glfwPollEvents();

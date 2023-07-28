@@ -12,8 +12,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#define MAX_THREADS 4
-#define MAX_PENDING_REQUESTS 50
+#define MAX_THREADS 2
+#define MAX_PENDING_REQUESTS 25
 
 
 struct thread_state {
@@ -46,25 +46,35 @@ void initialize_generator()
 	pthread_mutex_init( &threads_mtx, NULL );
 	pthread_mutex_init( &pending_requests_mtx, NULL );
 
+	pthread_mutex_lock( &threads_mtx );
+
 	for ( size_t i = 0; i < MAX_THREADS; ++i ){
 		threads[i].running = false;
 	}
 
+	pthread_mutex_unlock( &threads_mtx );
+
+	pthread_mutex_lock( &pending_requests_mtx );
+
 	for ( size_t i = 0; i < MAX_PENDING_REQUESTS; ++i ){
-		pending_requests[i].pending == false;
-		pending_requests[i].done == true;
-		pending_requests[i].fetched == true;
+		pending_requests[i].pending = false;
+		pending_requests[i].done = true;
+		pending_requests[i].fetched = true;
 	}
+
+	pthread_mutex_unlock( &pending_requests_mtx );
 }
 
 extern Material g_defaultTerrainMaterialLit;
+extern GLFWwindow* g_window;
 
 void poll_generator()
 {
 
 	pthread_mutex_lock( &pending_requests_mtx );
 
-	if ( !pending_fetches ) {
+
+	if ( pending_fetches == false ) {
 
 		pthread_mutex_unlock( &pending_requests_mtx );
 		return;
@@ -80,9 +90,9 @@ void poll_generator()
 
 			PerspectiveObject *requested_terrain = createPerspectiveObject();
 
-			requested_terrain->position.x = pending_requests[i].x;
-			//requested_terrain->position.y = 0;
-			requested_terrain->position.z = pending_requests[i].z;
+			requested_terrain->position.x = pending_requests[i].x * pending_requests[i].size;
+			requested_terrain->position.y = 0;
+			requested_terrain->position.z = pending_requests[i].z * pending_requests[i].size;
 
 			setObjectVBO(
 				requested_terrain, 
@@ -110,7 +120,6 @@ void poll_generator()
 
 			requested_terrain->material = &g_defaultTerrainMaterialLit;
 			requested_terrain->vertices = pending_requests[i].verticesCount;
-			
 
 		}
 
@@ -145,6 +154,8 @@ void *thread_job( void *data )
 
 	pthread_t self = pthread_self();
 
+
+
 	boolval found = true;
 
 	while ( found == true ) {
@@ -166,14 +177,14 @@ void *thread_job( void *data )
 
 		pthread_mutex_unlock( &pending_requests_mtx );	
 
-		if ( !found ) break;
+		if ( found == false ) break;
 		
 		float *vertices = NULL, *normals = NULL;
 		size_t verticesCount, normalsCount;
 
 		generateTessellatedQuad(
-			request.x, 
-			request.z, 
+			request.x * request.size, 
+			request.z * request.size, 
 			&vertices, 
 			&normals, 
 			request.tessellations, 
@@ -212,7 +223,7 @@ void *thread_job( void *data )
 
 	for ( size_t i = 0; i < MAX_THREADS; ++i ){
 
-		if ( pthread_equal( self, threads[i].thread ) ){
+		if ( pthread_equal( self, threads[i].thread ) != 0 ){
 			threads[i].running = false;
 			break;
 		}
@@ -233,7 +244,8 @@ void create_threads()
 	for ( size_t i = 0; i < MAX_THREADS; ++i ){
 		if ( threads[i].running == true) continue;
 
-		pthread_create( &threads[i].thread, NULL, thread_job, NULL );
+		threads[i].running = true;
+		pthread_create( &(threads[i].thread), NULL, thread_job, NULL );
 	}
 	pthread_mutex_unlock( &threads_mtx );
 
@@ -241,6 +253,7 @@ void create_threads()
 
 void request_generation( int x, int z, float size, size_t tessellations )
 {
+
 	pthread_mutex_lock( &pending_requests_mtx );
 
 	boolval found = false;
