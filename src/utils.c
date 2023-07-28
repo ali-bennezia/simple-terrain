@@ -49,7 +49,7 @@ void removeDataFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp)
 	--(arr->usage);
 	if (freeUp) free(*((void**)(arr->data + index)));
 	memcpy((char*)arr->data + index*arr->dataSizeInBytes, (char*)arr->data + (index + 1)*arr->dataSizeInBytes, ((arr->usage+1)-(index+1))*(arr->dataSizeInBytes));
-
+	
 	if (arr->size > 10 && arr->usage < arr->size/2)
 	{
 		arr->size /= 2;

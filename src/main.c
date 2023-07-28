@@ -15,6 +15,7 @@
 #include "objects.h"
 #include "factory.h"
 #include "noises.h"
+#include "generator.h"
 
 //Window params
 GLFWwindow* g_window = NULL;
@@ -212,6 +213,8 @@ void set_camera_FOV(float FOV)
 
 void cleanup()
 {
+	terminate_generator();
+
 	if (g_window != NULL)
 		glfwDestroyWindow(g_window);
 	glfwTerminate();
@@ -378,6 +381,7 @@ boolval initialize()
 
 	glClearColor(0, 0, 0, 1);
 
+	initialize_generator();
 
 	return false;
 
@@ -424,6 +428,8 @@ void update()
 	}
 
 	translate_camera(g_cameraVelocity[0]*g_deltaTime*g_cameraMoveSpeed, g_cameraVelocity[1]*g_deltaTime*g_cameraMoveSpeed, g_cameraVelocity[2]*g_deltaTime*g_cameraMoveSpeed);
+
+	poll_generator();
 }
 
 void render()
@@ -480,6 +486,8 @@ int main( int argc, char* argv[] )
 	skyQuad->vertices = 6;
 	skyQuad->useDepth = false;
 
+	/*
+
 	//terrain 1
 
 	PerspectiveObject *terrain = createPerspectiveObject();
@@ -518,7 +526,10 @@ int main( int argc, char* argv[] )
 	terrain2->material = &g_defaultTerrainMaterialLit;
 	terrain2->vertices = tquad2VerticesCount;
 
+	*/
 
+	request_generation(0, 0, 500, 8);
+	request_generation(1, 0, 500, 8);
 
 	//crate
 
