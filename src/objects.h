@@ -31,5 +31,6 @@ void drawPerspectiveObject(PerspectiveObject* obj);
 void initializeWorkspace();
 void renderWorkspace();
 PerspectiveObject* createPerspectiveObject();
+void deletePerspectiveObject( PerspectiveObject *obj );
 
 #endif

@@ -193,6 +193,11 @@ PerspectiveObject* createPerspectiveObject()
 	return data;
 }
 
+void deletePerspectiveObject( PerspectiveObject *obj )
+{
+	removeDataFromDynamicArray( g_workspace, obj, false );
+}
+
 void renderWorkspace()
 {
 	PerspectiveObject* iterator = (PerspectiveObject*)g_workspace->data;

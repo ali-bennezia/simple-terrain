@@ -16,6 +16,7 @@
 #include "factory.h"
 #include "noises.h"
 #include "generator.h"
+#include "renderer.h"
 
 //Window params
 GLFWwindow* g_window = NULL;
@@ -41,9 +42,9 @@ float g_directionalLightIntensity, g_ambientLightIntensity;
 vec3 g_sunDirection;
 
 //Textures, shaders, materials
-GLuint g_crateTexture, g_grassTexture, g_rockTexture, g_sandTexture, g_rock2Texture;
+GLuint g_crateTexture, g_grassTexture, g_rockTexture, g_sandTexture, g_rock2Texture, g_debugOrangeTexture;
 GLuint g_defaultProgram, g_texturedProgram, g_texturedTerrainProgram, g_skyQuadProgram;
-Material g_untexturedMaterialLit, g_crateMaterialLit, g_defaultTerrainMaterialLit, g_skyQuadMaterialUnlit;
+Material g_untexturedMaterialLit, g_crateMaterialLit, g_defaultTerrainMaterialLit, g_skyQuadMaterialUnlit, g_debugOrangeMaterialLit;
 
 void setSunDirection(float x, float y, float z)
 {
@@ -132,7 +133,7 @@ void updateProjectionMatrix()
 	int w, h;
 	glfwGetFramebufferSize(g_window, &w, &h);
 	g_aspectRatio = (float)w/(float)h;
-	glm_perspective(45, g_aspectRatio, 0.1, 1000, g_projectionMatrix);
+	glm_perspective(45, g_aspectRatio, 0.1, 10000, g_projectionMatrix);
 }
 
 void set_camera_rotate_speed(float cameraRotateSpeed)
@@ -215,6 +216,8 @@ void cleanup()
 {
 	terminate_generator();
 
+	terminate_renderer();
+
 	if (g_window != NULL)
 		glfwDestroyWindow(g_window);
 	glfwTerminate();
@@ -256,6 +259,12 @@ void handle_key_input(GLFWwindow* window, int key, int scancode, int action, int
 		if (key == GLFW_KEY_K){
 			g_wireframeEnabled = !g_wireframeEnabled;
 			glPolygonMode( GL_FRONT_AND_BACK, g_wireframeEnabled ? GL_LINE : GL_FILL );
+		}
+
+		if (key == GLFW_KEY_O){
+			g_cameraMoveSpeed *= 10;
+		}else if ( key == GLFW_KEY_I && g_cameraMoveSpeed > 50 ){
+			g_cameraMoveSpeed /= 10;
 		}
 
 	}else if (action == GLFW_RELEASE)
@@ -310,12 +319,13 @@ void initialize_default_materials()
 	g_rockTexture = loadTexture("assets/textures/rock_diffuse.jpg");
 	g_rock2Texture = loadTexture("assets/textures/rock2_diffuse.jpg");
 	g_sandTexture = loadTexture("assets/textures/sand_diffuse.png");
+	g_debugOrangeTexture = loadTexture("assets/textures/debug_orange.png");
 
 	g_untexturedMaterialLit = createMaterial(g_defaultProgram, true, true, false);
 	g_crateMaterialLit = createMaterial(g_texturedProgram, true, true, false);
 	g_defaultTerrainMaterialLit = createMaterial(g_texturedTerrainProgram, true, true, false);
 	g_skyQuadMaterialUnlit = createMaterial(g_skyQuadProgram, true, true, true);
-
+	g_debugOrangeMaterialLit = createMaterial(g_defaultProgram, true, true, false);
 
 	//untextured white material
 	Vec3fl white = {1, 1, 1};
@@ -328,13 +338,17 @@ void initialize_default_materials()
 
 	//terrain material
 	copyVec3fAsUniform(&g_defaultTerrainMaterialLit, "color", white);
-	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_rock2Texture, 0); //g_grassTexture
+	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_grassTexture, 0); //g_grassTexture
 	copyFloatAsUniform(&g_defaultTerrainMaterialLit, "textureTiles", 4);
 
 	//sky quad material
 	copyFloatAsUniform(&g_skyQuadMaterialUnlit, "cameraFOV", g_cameraFOV);
 	copyFloatAsUniform(&g_skyQuadMaterialUnlit, "cameraAspectRatio", g_aspectRatio);
 	copyFloatAsUniform(&g_skyQuadMaterialUnlit, "cameraPitch", g_cameraPitch);
+
+	//debug orange material
+	copyVec3fAsUniform(&g_debugOrangeMaterialLit, "color", white);
+	copyTextureAsUniform(&g_debugOrangeMaterialLit, "albedoTexture", g_debugOrangeTexture, 0);
 }
 
 boolval initialize()
@@ -442,6 +456,8 @@ int main( int argc, char* argv[] )
 	if (result == true)
 		return true;
 
+	initialize_renderer();
+
 	initialize_default_shaders();
 	initialize_default_materials();
 
@@ -527,10 +543,15 @@ int main( int argc, char* argv[] )
 
 	*/
 
-	request_generation(0, 0, 500, 4);
-	request_generation(1, 0, 500, 4);
-	request_generation(0, 1, 500, 4);
-	request_generation(1, 1, 500, 4);
+	request_generation(0, 0, 500, 6);
+	request_generation(1, 0, 500, 6);
+	request_generation(0, 1, 500, 6);
+	request_generation(1, 1, 500, 6);
+
+	request_generation(1, 0, 500, 6);
+	request_generation(2, 0, 500, 6);
+	request_generation(1, 1, 500, 6);
+	request_generation(2, 1, 500, 6);
 
 	//crate
 

@@ -48,7 +48,7 @@ float terrain_heightmap_func(float x, float y)
 	const float amplitude = 4*scale;
 
 	float result = amplitude*pnoise2d(x*plane_mapping_factor, y*plane_mapping_factor, 1, 1, 45645656);
-	result += 16*ridged_multifractal_noise2D(x*(1.0/128.0), y*(1.0/128.0), 415646549, 6);
+	//result += 16*ridged_multifractal_noise2D(x*(1.0/128.0), y*(1.0/128.0), 415646549, 6);
 	result -= 300;
 
 	return result;

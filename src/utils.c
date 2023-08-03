@@ -44,10 +44,12 @@ void* pushDataInDynamicArray(DynamicArray* arr, void* data)
 	memcpy(destination, data, arr->dataSizeInBytes);
 }
 
-void removeDataFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp)
+int removeDataAtIndexFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp)
 {
+	if ( index > arr->usage - 1 ) return 1;
+
 	--(arr->usage);
-	if (freeUp) free(*((void**)(arr->data + index)));
+	if (freeUp) free(*((void**)( (char*)arr->data + index*arr->dataSizeInBytes)));
 	memcpy((char*)arr->data + index*arr->dataSizeInBytes, (char*)arr->data + (index + 1)*arr->dataSizeInBytes, ((arr->usage+1)-(index+1))*(arr->dataSizeInBytes));
 	
 	if (arr->size > 10 && arr->usage < arr->size/2)
@@ -55,6 +57,26 @@ void removeDataFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp)
 		arr->size /= 2;
 		arr->data = realloc(arr->data, arr->size*arr->dataSizeInBytes);
 	}
+
+	return 0;
+}
+
+int removeDataFromDynamicArray(DynamicArray* arr, void* data, boolval freeUp)
+{
+	size_t target_index = 0;
+	boolval found = false;
+
+	for ( ; target_index < arr->usage; ++target_index ){
+
+		if( ( (void*)arr->data + target_index*arr->dataSizeInBytes ) == data ){
+			found = true;
+			break;
+		}
+
+	}
+
+	if ( !found ) return 1;
+	return removeDataAtIndexFromDynamicArray(arr, target_index, freeUp);
 }
 
 char* getFile(const char* path, int* length_out)
@@ -106,7 +128,6 @@ GLuint initialize_program(const char* vertexShaderPath, const char* fragmentShad
 
 	glShaderSource(fragmentShader, 1, &fragShaderSources[0], &lengths2[0]);
 	glCompileShader(fragmentShader);
-
 
 
 	GLuint program = glCreateProgram();
@@ -161,6 +182,16 @@ Vec3fl vec3fl_normalize(Vec3fl in)
 	if (magnitude == 0) return in;
 	in.x /= magnitude; in.y /= magnitude; in.z /= magnitude;
 	return in;
+}
+
+int min( int a, int b )
+{
+	return ( a < b ) ? a : b;
+}
+
+int max( int a, int b )
+{
+	return ( a > b ) ? a : b;
 }
 
 Vec3fl vec3fl_cross(Vec3fl u, Vec3fl v)
@@ -219,4 +250,25 @@ Vec3fl vec3fl_divide(Vec3fl dividend, float divider)
 		dividend.z / divider
 	};
 	return out;
+}
+
+float vec3fl_magnitude(Vec3fl in)
+{
+	return sqrt( in.x * in.x + in.y * in.y + in.z * in.z );
+}
+
+char* capped_strcpy( char* destination, const char* source, size_t max_len )
+{
+
+	size_t src_len = strlen( source ) + 1;
+	size_t len = min( src_len, max_len );
+	
+	char* src_cpy = (char*) malloc( src_len );
+	strcpy( src_cpy, source );
+
+	src_cpy[ len - 1 ] = '\0';
+
+	strcpy( destination, src_cpy );
+	free( src_cpy );	
+
 }
