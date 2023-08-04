@@ -5,6 +5,7 @@
 #include "noises.h"
 #include "objects.h"
 #include "materials.h"
+#include "terrain.h"
 
 #include <stdlib.h>
 #include <pthread.h>
@@ -15,6 +16,7 @@
 #define MAX_THREADS 2
 #define MAX_PENDING_REQUESTS 25
 
+extern float g_terrain_root_size;
 
 struct thread_state {
 
@@ -28,8 +30,8 @@ pthread_mutex_t threads_mtx;
 
 
 struct generation_request {
-	int x, z;
-	float size;
+	int x_coord, z_coord;
+	size_t level;
 	size_t tessellations;
 
 	void *vertices, *normals;
@@ -87,12 +89,13 @@ void poll_generator()
 
 			pending_requests[i].fetched = true;
 
+			float requested_terrain_size = g_terrain_root_size / pow( 2, pending_requests[i].level );
 
 			PerspectiveObject *requested_terrain = createPerspectiveObject();
 
-			requested_terrain->position.x = pending_requests[i].x * pending_requests[i].size;
+			requested_terrain->position.x = pending_requests[i].x_coord * requested_terrain_size;
 			requested_terrain->position.y = 0;
-			requested_terrain->position.z = pending_requests[i].z * pending_requests[i].size;
+			requested_terrain->position.z = pending_requests[i].z_coord * requested_terrain_size;
 
 			setObjectVBO(
 				requested_terrain, 
@@ -120,6 +123,8 @@ void poll_generator()
 
 			requested_terrain->material = &g_defaultTerrainMaterialLit;
 			requested_terrain->vertices = pending_requests[i].verticesCount;
+
+		//	push_generation_result( pending_requests[i].x_coord, pending_requests[i].z_coord, pending_requests[i].level, requested_terrain );			
 
 		}
 
@@ -178,17 +183,19 @@ void *thread_job( void *data )
 		pthread_mutex_unlock( &pending_requests_mtx );	
 
 		if ( found == false ) break;
+
+		float request_size = g_terrain_root_size / pow( 2, request.level );
 		
 		float *vertices = NULL, *normals = NULL;
 		size_t verticesCount, normalsCount;
 
 		generateTessellatedQuad(
-			request.x * request.size, 
-			request.z * request.size, 
+			request.x_coord * request_size, 
+			request.z_coord * request_size, 
 			&vertices, 
 			&normals, 
 			request.tessellations, 
-			request.size, 
+			request_size, 
 			terrain_heightmap_func, 
 			&verticesCount, 
 			&normalsCount
@@ -251,7 +258,7 @@ void create_threads()
 
 }
 
-void request_generation( int x, int z, float size, size_t tessellations )
+void request_generation( int x_coord, int z_coord, size_t level, size_t tessellations )
 {
 
 	pthread_mutex_lock( &pending_requests_mtx );
@@ -261,9 +268,9 @@ void request_generation( int x, int z, float size, size_t tessellations )
 	for ( size_t i = 0; i < MAX_PENDING_REQUESTS; ++i ){
 		if ( pending_requests[i].pending == false && pending_requests[i].done == true && pending_requests[i].fetched == true ){
 
-			pending_requests[i].x = x;
-			pending_requests[i].z = z;
-			pending_requests[i].size = size;
+			pending_requests[i].x_coord = x_coord;
+			pending_requests[i].z_coord = z_coord;
+			pending_requests[i].level = level;
 			pending_requests[i].tessellations = tessellations;
 
 			pending_requests[i].pending = true;	

@@ -15,6 +15,7 @@
 #include "objects.h"
 #include "factory.h"
 #include "noises.h"
+#include "terrain.h"
 #include "generator.h"
 #include "renderer.h"
 
@@ -133,7 +134,7 @@ void updateProjectionMatrix()
 	int w, h;
 	glfwGetFramebufferSize(g_window, &w, &h);
 	g_aspectRatio = (float)w/(float)h;
-	glm_perspective(45, g_aspectRatio, 0.1, 10000, g_projectionMatrix);
+	glm_perspective(g_cameraFOV, g_aspectRatio, 0.1, 10000, g_projectionMatrix);
 }
 
 void set_camera_rotate_speed(float cameraRotateSpeed)
@@ -440,7 +441,6 @@ void update()
 	}
 
 	translate_camera(g_cameraVelocity[0]*g_deltaTime*g_cameraMoveSpeed, g_cameraVelocity[1]*g_deltaTime*g_cameraMoveSpeed, g_cameraVelocity[2]*g_deltaTime*g_cameraMoveSpeed);
-
 }
 
 void render()
@@ -543,7 +543,7 @@ int main( int argc, char* argv[] )
 
 	*/
 
-	request_generation(0, 0, 500, 6);
+	/*request_generation(0, 0, 500, 6);
 	request_generation(1, 0, 500, 6);
 	request_generation(0, 1, 500, 6);
 	request_generation(1, 1, 500, 6);
@@ -551,7 +551,9 @@ int main( int argc, char* argv[] )
 	request_generation(1, 0, 500, 6);
 	request_generation(2, 0, 500, 6);
 	request_generation(1, 1, 500, 6);
-	request_generation(2, 1, 500, 6);
+	request_generation(2, 1, 500, 6);*/
+
+	request_generation(0, 0, 0, 500);
 
 	//crate
 
@@ -743,6 +745,7 @@ int main( int argc, char* argv[] )
 		update();
 		render();
 		poll_generator();
+		//poll_terrain();
 
 		glfwSwapBuffers(g_window);
 		glfwPollEvents();
