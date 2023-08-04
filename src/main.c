@@ -553,7 +553,7 @@ int main( int argc, char* argv[] )
 	request_generation(1, 1, 500, 6);
 	request_generation(2, 1, 500, 6);*/
 
-	request_generation(0, 0, 0, 500);
+	//request_generation(0, 0, 0, 8);
 
 	//crate
 
@@ -745,7 +745,7 @@ int main( int argc, char* argv[] )
 		update();
 		render();
 		poll_generator();
-		//poll_terrain();
+		poll_terrain();
 
 		glfwSwapBuffers(g_window);
 		glfwPollEvents();

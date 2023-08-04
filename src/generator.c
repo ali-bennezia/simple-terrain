@@ -124,7 +124,7 @@ void poll_generator()
 			requested_terrain->material = &g_defaultTerrainMaterialLit;
 			requested_terrain->vertices = pending_requests[i].verticesCount;
 
-		//	push_generation_result( pending_requests[i].x_coord, pending_requests[i].z_coord, pending_requests[i].level, requested_terrain );			
+			push_generation_result( pending_requests[i].x_coord, pending_requests[i].z_coord, pending_requests[i].level, requested_terrain );			
 
 		}
 

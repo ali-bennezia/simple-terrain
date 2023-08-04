@@ -93,7 +93,7 @@ void request_terrain_generation( QuadTreeNode* node, int x_coord, int z_coord, s
 	if ( !( node->state == QTNS_LOADED_SINGULAR || node->state == QTNS_PENDING ) ){
 		delete_node_children( node );	
 		node->state = QTNS_PENDING;
-		request_generation( x_coord, z_coord, level, 500 );
+		request_generation( x_coord, z_coord, level, 8 );
 	}
 }
 
@@ -178,6 +178,18 @@ void poll_qtn( QuadTreeNode *node, int x, int z, size_t level )
 				new_node->children = NULL;
 				*( ( QuadTreeNode** ) node->children + i ) = new_node;
 	
+				poll_qtn( new_node, child_x, child_z, level + 1 );			
+	
+			}
+
+		}else{
+
+			for ( size_t i = 0; i < 4; ++i ){
+
+				int child_x = x * 2 + ( i % 2 );
+				int child_z = z * 2 + ( i - child_x ) / 2;
+
+				QuadTreeNode *new_node = *( ( QuadTreeNode** ) node->children + i );
 				poll_qtn( new_node, child_x, child_z, level + 1 );			
 	
 			}
