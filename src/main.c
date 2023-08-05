@@ -215,8 +215,8 @@ void set_camera_FOV(float FOV)
 
 void cleanup()
 {
+	terminate_terrain();
 	terminate_generator();
-
 	terminate_renderer();
 
 	if (g_window != NULL)
@@ -464,6 +464,7 @@ int main( int argc, char* argv[] )
 	initializeWorkspace();
 
 	initialize_generator();
+	initialize_terrain();
 
 	set_camera_move_speed(50);
 	set_camera_rotate_speed(1);
@@ -542,16 +543,6 @@ int main( int argc, char* argv[] )
 	terrain2->vertices = tquad2VerticesCount;
 
 	*/
-
-	/*request_generation(0, 0, 500, 6);
-	request_generation(1, 0, 500, 6);
-	request_generation(0, 1, 500, 6);
-	request_generation(1, 1, 500, 6);
-
-	request_generation(1, 0, 500, 6);
-	request_generation(2, 0, 500, 6);
-	request_generation(1, 1, 500, 6);
-	request_generation(2, 1, 500, 6);*/
 
 	//request_generation(0, 0, 0, 8);
 
