@@ -171,38 +171,33 @@ DynamicArray* g_workspace = NULL;
 void initializeWorkspace()
 {
 	if (g_workspace != NULL) return;
-	g_workspace = createDynamicArray(sizeof(PerspectiveObject));
+	g_workspace = createDynamicArray(sizeof(PerspectiveObject*));
 }
 
 PerspectiveObject* createPerspectiveObject()
 {
-	PerspectiveObject obj = {
-		{0, 0, 0},
-		{0, 0, 0},
+	PerspectiveObject *obj = calloc( 1, sizeof( PerspectiveObject ) ); 
+	obj->useDepth = true;
 
-		0, 0, 0,
-		0,
-
-		false, false, false,
-
-		NULL,
-
-		true
-	};
-	PerspectiveObject* data = pushDataInDynamicArray( g_workspace, &obj );
-	return data;
+	PerspectiveObject** data = pushDataInDynamicArray( g_workspace, &obj );
+	return *data;
 }
 
 void deletePerspectiveObject( PerspectiveObject *obj )
 {
-	removeDataFromDynamicArray( g_workspace, obj, false );
+	removeDataFromDynamicArray( g_workspace, &obj, true );
+}
+
+void clearWorkspace()
+{
+	clearDynamicArray( g_workspace );
 }
 
 void renderWorkspace()
 {
-	PerspectiveObject* iterator = (PerspectiveObject*)g_workspace->data;
+	PerspectiveObject** iterator = (PerspectiveObject**)g_workspace->data;
 	for (size_t i = 0; i < g_workspace->usage; ++i){
-		drawPerspectiveObject( iterator );
+		drawPerspectiveObject( *iterator );
 		++iterator;	
 	}
 }

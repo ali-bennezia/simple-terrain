@@ -237,6 +237,7 @@ void toggle_cursor_lock()
 	set_cursor_lock(!g_lockMouse);
 }
 
+extern QuadTreeNode root;
 
 void handle_key_input(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -266,6 +267,10 @@ void handle_key_input(GLFWwindow* window, int key, int scancode, int action, int
 			g_cameraMoveSpeed *= 10;
 		}else if ( key == GLFW_KEY_I && g_cameraMoveSpeed > 50 ){
 			g_cameraMoveSpeed /= 10;
+		}
+
+		if (key == GLFW_KEY_C){
+			clear_node_children( &root );
 		}
 
 	}else if (action == GLFW_RELEASE)

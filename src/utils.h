@@ -22,6 +22,7 @@ typedef struct DynamicArray {
 } DynamicArray;
 
 DynamicArray* createDynamicArray(size_t dataSizeInBytes);
+void clearDynamicArray(DynamicArray* arr);
 void deleteDynamicArray(DynamicArray* arr);
 void* pushDataInDynamicArray(DynamicArray* arr, void* data);
 int removeDataAtIndexFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp);

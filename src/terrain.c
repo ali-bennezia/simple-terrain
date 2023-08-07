@@ -8,9 +8,9 @@
 extern vec3 g_cameraPosition;
 
 QuadTreeNode root;
-float g_terrain_root_size = 5000;
-float g_terrain_min_distance = 3536;
-size_t max_level = 4;
+float g_terrain_root_size = 10000;
+float g_terrain_min_distance = 15000;
+size_t max_level = 8;
 
 void initialize_terrain()
 {
@@ -93,7 +93,7 @@ void clear_node_children( QuadTreeNode *node )
 		case QTNS_PENDING_WHILE_SUBDIVIDED:
 			for ( size_t i = 0; i < 4; ++i )
 			{
-				QuadTreeNode *child_node = *( (QuadTreeNode**) node->children + i );
+				QuadTreeNode *child_node = *( (QuadTreeNode**)node->children + i );
 				clear_node_children( child_node );
 				free( child_node );	
 			}
@@ -139,7 +139,7 @@ QuadTreeNode *search_node( int x, int z, size_t level )
 
 		if ( last == false ){
 
-			if ( search_node->state != QTNS_SUBDIVIDED ) break;
+			if ( search_node->state != QTNS_SUBDIVIDED && search_node->state != QTNS_PENDING_WHILE_SUBDIVIDED ) break;
 			
 			int next_level_x_coord, next_level_z_coord;
 			convert_coords_level( x, z, level, search_level+1, &next_level_x_coord, &next_level_z_coord );
@@ -162,7 +162,7 @@ void request_node_generation( QuadTreeNode* node, int x_coord, int z_coord, size
 	if ( is_node_pending( node ) ) return;
 
 	enum QuadTreeNodeState previous_state = node->state;
-	clear_node_children( node );
+	//clear_node_children( node );
 
 	switch ( previous_state ){
 
@@ -175,10 +175,12 @@ void request_node_generation( QuadTreeNode* node, int x_coord, int z_coord, size
 		case QTNS_SUBDIVIDED:
 			node->state = QTNS_PENDING_WHILE_SUBDIVIDED;
 			break;
+		default:
+			break;
 
 	}
 
-	request_generation( x_coord, z_coord, level, 8 );
+	request_generation( x_coord, z_coord, level, 4 );
 }
 
 void push_generation_result( int x, int z, size_t level, PerspectiveObject* obj )
@@ -196,14 +198,12 @@ void push_generation_result( int x, int z, size_t level, PerspectiveObject* obj 
 
 }
 
-
-
 void poll_node( QuadTreeNode *node, int x, int z, size_t level )
 {
 	size_t target_level = max( level, get_quad_level( x, z, level ) );
 
 	if ( level < target_level ){
-		
+	
 		if ( node->state != QTNS_SUBDIVIDED ){
 			subdivide_node( node );
 		}
@@ -215,7 +215,7 @@ void poll_node( QuadTreeNode *node, int x, int z, size_t level )
 
 			int child_x_coord = x * 2 + local_x_coord, child_z_coord = z * 2 + local_z_coord;
 
-			poll_node( *( (QuadTreeNode**) node->children + i ), local_x_coord, local_z_coord, level + 1 );
+			poll_node( *( (QuadTreeNode**) node->children + i ), child_x_coord, child_z_coord, level + 1 );
 		}
 
 	}else{

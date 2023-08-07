@@ -29,6 +29,7 @@ void getPerspectiveObjectModelMatrix(PerspectiveObject* obj, mat4 out);
 void drawPerspectiveObject(PerspectiveObject* obj);
 
 void initializeWorkspace();
+void clearWorkspace();
 void renderWorkspace();
 PerspectiveObject* createPerspectiveObject();
 void deletePerspectiveObject( PerspectiveObject *obj );

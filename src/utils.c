@@ -21,6 +21,13 @@ DynamicArray* createDynamicArray(size_t dataSizeInBytes)
 	return arr;
 }
 
+void clearDynamicArray(DynamicArray* arr)
+{
+	arr->usage = 0;
+	arr->size = 10;
+	arr->data = realloc( arr->data, arr->dataSizeInBytes * arr->size );
+}
+
 void deleteDynamicArray(DynamicArray* arr)
 {
 	if (!arr) return;
@@ -50,7 +57,17 @@ int removeDataAtIndexFromDynamicArray(DynamicArray* arr, size_t index, boolval f
 
 	--(arr->usage);
 	if (freeUp) free(*((void**)( (char*)arr->data + index*arr->dataSizeInBytes)));
-	memcpy((char*)arr->data + index*arr->dataSizeInBytes, (char*)arr->data + (index + 1)*arr->dataSizeInBytes, ((arr->usage+1)-(index+1))*(arr->dataSizeInBytes));
+
+	void *moved_elems_source = (void*) ( (char*)arr->data + (index + 1)*arr->dataSizeInBytes );
+	void *moved_elems_dest = (void*) ( (char*)arr->data + index*arr->dataSizeInBytes );
+	size_t moved_elems_count = (arr->usage+1)-(index+1);
+	void *temp_move_buff = malloc( moved_elems_count * arr->dataSizeInBytes );
+
+	memcpy( temp_move_buff, moved_elems_source, moved_elems_count * arr->dataSizeInBytes );
+	memcpy( moved_elems_dest, temp_move_buff, moved_elems_count * arr->dataSizeInBytes );
+	free( temp_move_buff );
+
+	//memcpy((char*)arr->data + index*arr->dataSizeInBytes, (char*)arr->data + (index + 1)*arr->dataSizeInBytes, ((arr->usage+1)-(index+1))*(arr->dataSizeInBytes));
 	
 	if (arr->size > 10 && arr->usage < arr->size/2)
 	{
@@ -68,7 +85,8 @@ int removeDataFromDynamicArray(DynamicArray* arr, void* data, boolval freeUp)
 
 	for ( ; target_index < arr->usage; ++target_index ){
 
-		if( ( (void*)arr->data + target_index*arr->dataSizeInBytes ) == data ){
+		if ( memcmp( data, ( void* ) ( ( char* ) arr->data + target_index*arr->dataSizeInBytes ), arr->dataSizeInBytes ) == 0 )
+		{
 			found = true;
 			break;
 		}
