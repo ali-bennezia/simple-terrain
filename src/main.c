@@ -344,7 +344,7 @@ void initialize_default_materials()
 
 	//terrain material
 	copyVec3fAsUniform(&g_defaultTerrainMaterialLit, "color", white);
-	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_grassTexture, 0); //g_grassTexture
+	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_rock2Texture, 0); //g_grassTexture
 	copyFloatAsUniform(&g_defaultTerrainMaterialLit, "textureTiles", 4);
 
 	//sky quad material

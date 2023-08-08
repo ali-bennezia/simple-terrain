@@ -180,7 +180,7 @@ void request_node_generation( QuadTreeNode* node, int x_coord, int z_coord, size
 
 	}
 
-	request_generation( x_coord, z_coord, level, 4 );
+	request_generation( x_coord, z_coord, level, 5 );
 }
 
 void push_generation_result( int x, int z, size_t level, PerspectiveObject* obj )

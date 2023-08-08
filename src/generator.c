@@ -13,8 +13,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#define MAX_THREADS 2
-#define MAX_PENDING_REQUESTS 25
+#define MAX_THREADS 4
+#define MAX_PENDING_REQUESTS 100
 
 extern float g_terrain_root_size;
 
