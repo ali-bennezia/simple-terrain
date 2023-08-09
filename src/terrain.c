@@ -64,7 +64,17 @@ size_t get_quad_level( int x_coord, int z_coord, size_t level )
 
 boolval is_node_pending( QuadTreeNode *node )
 {
-	return ( node->state == QTNS_PENDING_WHILE_LOADED || node->state == QTNS_PENDING_WHILE_SUBDIVIDED || node->state == QTNS_PENDING_WHILE_NULL ) ? true : false;
+	return ( node->state == QTNS_PENDING_WHILE_NULL || node->state == QTNS_PENDING_WHILE_SUBDIVIDED ) ? true : false;
+}
+
+boolval is_node_subdivided( QuadTreeNode *node )
+{
+	return ( node->state == QTNS_SUBDIVIDED || node->state == QTNS_PENDING_WHILE_SUBDIVIDED || node->state == QTNS_LOADED_AND_SUBDIVIDED );
+}
+
+boolval is_node_loaded( QuadTreeNode *node )
+{
+	return ( node->state == QTNS_LOADED || node->state == QTNS_LOADED_AND_SUBDIVIDED );
 }
 
 /*
@@ -86,7 +96,6 @@ void clear_node_children( QuadTreeNode *node )
 	switch ( node->state ){
 
 		case QTNS_LOADED:
-		case QTNS_PENDING_WHILE_LOADED:
 			deletePerspectiveObject( (PerspectiveObject*) node->children );
 			break;
 		case QTNS_SUBDIVIDED:
@@ -139,7 +148,7 @@ QuadTreeNode *search_node( int x, int z, size_t level )
 
 		if ( last == false ){
 
-			if ( search_node->state != QTNS_SUBDIVIDED && search_node->state != QTNS_PENDING_WHILE_SUBDIVIDED ) break;
+			if ( !is_node_subdivided( search_node )  ) break;
 			
 			int next_level_x_coord, next_level_z_coord;
 			convert_coords_level( x, z, level, search_level+1, &next_level_x_coord, &next_level_z_coord );
@@ -159,23 +168,17 @@ QuadTreeNode *search_node( int x, int z, size_t level )
 
 void request_node_generation( QuadTreeNode* node, int x_coord, int z_coord, size_t level )
 {
-	if ( is_node_pending( node ) ) return;
+	if ( is_node_pending( node ) || is_node_loaded( node ) ) return;
 
 	enum QuadTreeNodeState previous_state = node->state;
-	//clear_node_children( node );
 
 	switch ( previous_state ){
 
 		case QTNS_NULL:
 			node->state = QTNS_PENDING_WHILE_NULL;
 			break;
-		case QTNS_LOADED:
-			node->state = QTNS_PENDING_WHILE_LOADED;
-			break;
 		case QTNS_SUBDIVIDED:
 			node->state = QTNS_PENDING_WHILE_SUBDIVIDED;
-			break;
-		default:
 			break;
 
 	}

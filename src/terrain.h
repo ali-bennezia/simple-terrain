@@ -11,8 +11,8 @@ enum QuadTreeNodeState
 {
 	QTNS_LOADED,
 	QTNS_SUBDIVIDED,
+	QTNS_LOADED_AND_SUBDIVIDED,
 	QTNS_NULL,
-	QTNS_PENDING_WHILE_LOADED,
 	QTNS_PENDING_WHILE_SUBDIVIDED,
 	QTNS_PENDING_WHILE_NULL
 };
@@ -29,7 +29,11 @@ void terminate_terrain();
 void convert_coords_level( int from_x, int from_z, size_t from_level, size_t to_level, int *result_x, int *result_z );
 size_t get_position_level( float x, float y, float z );
 size_t get_quad_level( int x_coord, int z_coord, size_t level );
+
 boolval is_node_pending( QuadTreeNode *node );
+boolval is_node_subdivided( QuadTreeNode *node );
+boolval is_node_loaded( QuadTreeNode *node );
+
 QuadTreeNode *generate_node( );
 void clear_node_children( QuadTreeNode *node );
 void subdivide_node( QuadTreeNode *node );

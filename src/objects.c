@@ -178,6 +178,7 @@ PerspectiveObject* createPerspectiveObject()
 {
 	PerspectiveObject *obj = calloc( 1, sizeof( PerspectiveObject ) ); 
 	obj->useDepth = true;
+	obj->visible = true;
 
 	PerspectiveObject** data = pushDataInDynamicArray( g_workspace, &obj );
 	return *data;
@@ -197,7 +198,7 @@ void renderWorkspace()
 {
 	PerspectiveObject** iterator = (PerspectiveObject**)g_workspace->data;
 	for (size_t i = 0; i < g_workspace->usage; ++i){
-		drawPerspectiveObject( *iterator );
+		if ( (*iterator)->visible ) drawPerspectiveObject( *iterator );
 		++iterator;	
 	}
 }

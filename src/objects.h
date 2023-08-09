@@ -20,7 +20,7 @@ typedef struct PerspectiveObject {
 	boolval meshInitialized, normalsInitialized, UVsInitialized;
 
 	Material* material;
-	boolval useDepth;
+	boolval useDepth, visible;
 } PerspectiveObject;
 
 void setObjectVBO(PerspectiveObject* objPtr, GLuint vboHandle, enum BufferType type);
