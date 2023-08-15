@@ -20,6 +20,7 @@ enum QuadTreeNodeState
 typedef struct QuadTreeNode
 {
 	enum QuadTreeNodeState state;
+	struct QuadTreeNode* parent;
 	void *children;
 } QuadTreeNode;
 
@@ -33,9 +34,16 @@ size_t get_quad_level( int x_coord, int z_coord, size_t level );
 boolval is_node_pending( QuadTreeNode *node );
 boolval is_node_subdivided( QuadTreeNode *node );
 boolval is_node_loaded( QuadTreeNode *node );
+boolval is_node_covered( QuadTreeNode *node, boolval check_root );
+
+void set_covering_children_visibility( QuadTreeNode *node, boolval visibility, boolval affect_root );
+boolval should_node_be_hidden( QuadTreeNode *node );
 
 QuadTreeNode *generate_node( );
 void clear_node_children( QuadTreeNode *node );
+void check_node_for_mutation( QuadTreeNode *node );
+void check_node_ancestry_for_mutation( QuadTreeNode *node );
+void regroup_node( QuadTreeNode *node );
 void subdivide_node( QuadTreeNode *node );
 QuadTreeNode *search_node( int x, int z, size_t level );
 void request_node_generation( QuadTreeNode *node, int x, int z, size_t level );

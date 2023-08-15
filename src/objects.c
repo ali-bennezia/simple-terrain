@@ -186,7 +186,7 @@ PerspectiveObject* createPerspectiveObject()
 
 void deletePerspectiveObject( PerspectiveObject *obj )
 {
-	removeDataFromDynamicArray( g_workspace, &obj, true );
+	removeDataFromDynamicArray( g_workspace, obj, true );
 }
 
 void clearWorkspace()
