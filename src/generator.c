@@ -30,8 +30,7 @@ pthread_mutex_t threads_mtx;
 
 
 struct generation_request {
-	int x_coord, z_coord;
-	size_t level;
+	float x_pos, z_pos, size;
 	size_t tessellations;
 
 	void *vertices, *normals;
@@ -89,13 +88,15 @@ void poll_generator()
 
 			pending_requests[i].fetched = true;
 
-			float requested_terrain_size = g_terrain_root_size / pow( 2, pending_requests[i].level );
+			float requested_terrain_size =  pending_requests[i].size;
 
 			PerspectiveObject *requested_terrain = createPerspectiveObject();
 
-			requested_terrain->position.x = pending_requests[i].x_coord * requested_terrain_size;
+			requested_terrain->position.x = pending_requests[i].x_pos;
 			requested_terrain->position.y = 0;
-			requested_terrain->position.z = pending_requests[i].z_coord * requested_terrain_size;
+			requested_terrain->position.z = pending_requests[i].z_pos;
+
+			requested_terrain->visibility = false;
 
 			setObjectVBO(
 				requested_terrain, 
@@ -124,7 +125,7 @@ void poll_generator()
 			requested_terrain->material = &g_defaultTerrainMaterialLit;
 			requested_terrain->vertices = pending_requests[i].verticesCount;
 
-			push_generation_result( pending_requests[i].x_coord, pending_requests[i].z_coord, pending_requests[i].level, requested_terrain );			
+			push_generation_result( pending_requests[i].x_pos, pending_requests[i].z_pos, pending_requests[i].size, requested_terrain );			
 
 		}
 
@@ -184,14 +185,14 @@ void *thread_job( void *data )
 
 		if ( found == false ) break;
 
-		float request_size = g_terrain_root_size / pow( 2, request.level );
+		float request_size = request.size;
 		
 		float *vertices = NULL, *normals = NULL;
 		size_t verticesCount, normalsCount;
 
 		generateTessellatedQuad(
-			request.x_coord * request_size, 
-			request.z_coord * request_size, 
+			request.x_pos, 
+			request.z_pos, 
 			&vertices, 
 			&normals, 
 			request.tessellations, 
@@ -258,7 +259,7 @@ void create_threads()
 
 }
 
-void request_generation( int x_coord, int z_coord, size_t level, size_t tessellations )
+void request_generation( float x_pos, float z_pos, float size, size_t tessellations )
 {
 
 	pthread_mutex_lock( &pending_requests_mtx );
@@ -268,9 +269,9 @@ void request_generation( int x_coord, int z_coord, size_t level, size_t tessella
 	for ( size_t i = 0; i < MAX_PENDING_REQUESTS; ++i ){
 		if ( pending_requests[i].pending == false && pending_requests[i].done == true && pending_requests[i].fetched == true ){
 
-			pending_requests[i].x_coord = x_coord;
-			pending_requests[i].z_coord = z_coord;
-			pending_requests[i].level = level;
+			pending_requests[i].x_pos = x_pos;
+			pending_requests[i].z_pos = z_pos;
+			pending_requests[i].size = size;
 			pending_requests[i].tessellations = tessellations;
 
 			pending_requests[i].pending = true;	

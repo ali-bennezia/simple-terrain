@@ -7,49 +7,12 @@
 struct PerspectiveObject;
 typedef struct PerspectiveObject PerspectiveObject;
 
-enum QuadTreeNodeState
-{
-	QTNS_LOADED,
-	QTNS_SUBDIVIDED,
-	QTNS_LOADED_AND_SUBDIVIDED,
-	QTNS_NULL,
-	QTNS_PENDING_WHILE_SUBDIVIDED,
-	QTNS_PENDING_WHILE_NULL
-};
+// terrain control
 
-typedef struct QuadTreeNode
-{
-	enum QuadTreeNodeState state;
-	struct QuadTreeNode* parent;
-	void *children;
-} QuadTreeNode;
+void push_generation_result( float x_pos, float z_pos, float size, PerspectiveObject* obj );
 
 void initialize_terrain();
 void terminate_terrain();
-
-void convert_coords_level( int from_x, int from_z, size_t from_level, size_t to_level, int *result_x, int *result_z );
-size_t get_position_level( float x, float y, float z );
-size_t get_quad_level( int x_coord, int z_coord, size_t level );
-
-boolval is_node_pending( QuadTreeNode *node );
-boolval is_node_subdivided( QuadTreeNode *node );
-boolval is_node_loaded( QuadTreeNode *node );
-boolval is_node_covered( QuadTreeNode *node, boolval check_root );
-
-void set_covering_children_visibility( QuadTreeNode *node, boolval visibility, boolval affect_root );
-boolval should_node_be_hidden( QuadTreeNode *node );
-
-QuadTreeNode *generate_node( );
-void clear_node_children( QuadTreeNode *node );
-void check_node_for_mutation( QuadTreeNode *node );
-void check_node_ancestry_for_mutation( QuadTreeNode *node );
-void regroup_node( QuadTreeNode *node );
-void subdivide_node( QuadTreeNode *node );
-QuadTreeNode *search_node( int x, int z, size_t level );
-void request_node_generation( QuadTreeNode *node, int x, int z, size_t level );
-void push_generation_result( int x, int z, size_t level, PerspectiveObject* obj );
-
-void poll_node( QuadTreeNode* node, int x, int z, size_t level );
 void poll_terrain();
 
 #endif

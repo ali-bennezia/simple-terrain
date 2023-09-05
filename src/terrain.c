@@ -1,30 +1,143 @@
 #include "terrain.h"
 
 #include <cglm/cglm.h>
+#include <pthread.h>
 
 #include "objects.h"
 #include "generator.h"
 
+/// definitions
+
+enum NodeType
+{
+	NODE_TYPE_UNIQUE,
+	NODE_TYPE_MANIFOLD	
+};
+
+enum NodeState
+{
+	NODE_STATE_EMPTY,
+	NODE_STATE_AWAITING,
+	NODE_STATE_CHUNK
+};
+
+typedef struct Node {
+	enum NodeType type;
+	enum NodeState state;
+	void *data;
+} Node;
+
+// data going from the main thread to the quadtree worker thread
+
+typedef struct InboundData {
+	float x_pos, z_pos, size;
+	PerspectiveObject *obj;
+	boolval done;
+} InboundData;
+
+// data going from the quadtree worker thread to the main thread
+
+enum OutboundDataType {
+	OUTBOUND_DATA_TYPE_GENERATE_CHUNK,
+	OUTBOUND_DATA_TYPE_REMOVE_CHUNK,
+	OUTBOUND_DATA_TYPE_SET_CHUNK_VISIBLE,
+	OUTBOUND_DATA_TYPE_SET_CHUNK_INVISIBLE
+};
+
+typedef struct OutboundData {
+	float x_pos, z_pos, size;
+	enum OutboundDataType type;
+	PerspectiveObject *obj;
+	boolval done;
+} OutboundData;
+
+/// quadtree worker thread
+
+static pthread_t g_quadtree_thread;
+static boolval g_quadtree_thread_running = true;
+static pthread_mutex_t g_quadtree_mtx;
+
+// inter-thread data transferts
+
+#define MAX_DATA_TRANSFERTS 80
+
+static InboundData g_inbound[ MAX_DATA_TRANSFERTS ] = { 0 };
+static OutboundData g_outbound[ MAX_DATA_TRANSFERTS ] = { 0 };
+
+static pthread_mutex_t g_inbound_mtx, g_outbound_mtx;
+
+/// inter-thread data transfert utilities
+
+static void push_inbound_data( float x_pos, float z_pos, float size, PerspectiveObject *obj )
+{
+
+	pthread_mutex_lock( &g_inbound_mtx );	
+
+	for ( size_t i = 0; i < MAX_DATA_TRANSFERTS; ++i )
+	{
+	
+		InboundData data = g_inbound[ i ];
+		if ( data.done )
+		{
+			data.x_pos = x_pos;
+			data.z_pos = z_pos;
+			data.size = size;
+			data.obj = obj;
+			data.done = false;
+			g_inbound[ i ] = data;
+			break;
+		}		
+	
+	}
+
+	pthread_mutex_unlock( &g_inbound_mtx );	
+	
+}
+
+static void push_outbound_data( float x_pos, float z_pos, float size, enum OutboundDataType type, PerspectiveObject *obj )
+{
+
+	pthread_mutex_lock( &g_outbound_mtx );	
+
+	for ( size_t i = 0; i < MAX_DATA_TRANSFERTS; ++i )
+	{
+	
+		OutboundData data = g_outbound[ i ];
+		if ( data.done )
+		{
+			data.x_pos = x_pos;
+			data.z_pos = z_pos;
+			data.size = size;
+			data.type = type;
+			data.obj = obj;
+			data.done = false;
+			g_outbound[ i ] = data;
+			break;
+		}		
+	
+	}
+
+	pthread_mutex_unlock( &g_outbound_mtx );	
+	
+}
+
+/// quadtree parameters
+
+Node g_quadtree_root;
+float g_quadtree_root_size = 10000;
+float g_quadtree_min_distance = 15000;
+size_t g_quadtree_max_level = 7;
+
+#define TESSELLATIONS 4
+
+/// runtime values
+
 extern vec3 g_cameraPosition;
+Vec3fl g_quadtree_subject_position;
 
-QuadTreeNode root;
-float g_terrain_root_size = 10000;
-float g_terrain_min_distance = 15000;
-size_t max_level = 8;
+/// quadtree utilities
 
-void initialize_terrain()
-{
-	root.state = QTNS_NULL;
-	root.children = NULL;
-	root.parent = NULL;
-}
-
-void terminate_terrain()
-{
-
-}
-
-void convert_coords_level( int from_x, int from_z, size_t from_level, size_t to_level, int *result_x, int *result_z )
+static void convert_coords_level( int from_x, int from_z, size_t from_level, size_t to_level, int *result_x, int *result_z )
 {
 	float quotient = pow( 2, (int)to_level - (int)from_level );
 
@@ -32,16 +145,16 @@ void convert_coords_level( int from_x, int from_z, size_t from_level, size_t to_
 	*result_z = floor( from_z * quotient );
 }
 
-size_t get_position_level( float x, float y, float z )
+static size_t get_position_level( float x, float y, float z )
 {
 	Vec3fl diff = {
-		x - g_cameraPosition[0],
-		y - g_cameraPosition[1],
-		z - g_cameraPosition[2]
+		x - g_quadtree_subject_position.x,
+		y - g_quadtree_subject_position.y,
+		z - g_quadtree_subject_position.z
 	};
 	float distance = vec3fl_magnitude( diff );
 
-	float tested_distance = g_terrain_min_distance;
+	float tested_distance = g_quadtree_min_distance;
 	int level = 0;
 	
 	while ( distance < tested_distance ){
@@ -49,12 +162,12 @@ size_t get_position_level( float x, float y, float z )
 		++level;
 	}
 
-	return min( level, max_level );	
+	return min( level, g_quadtree_max_level );	
 }
 
-size_t get_quad_level( int x_coord, int z_coord, size_t level )
+static size_t get_quad_level( int x_coord, int z_coord, size_t level )
 {
-	float quad_size = g_terrain_root_size / pow( 2, level );
+	float quad_size = g_quadtree_root_size / pow( 2, level );
 
 	float x_pos = quad_size * x_coord + quad_size / 2.0;
 	float z_pos = quad_size * z_coord + quad_size / 2.0;
@@ -62,300 +175,359 @@ size_t get_quad_level( int x_coord, int z_coord, size_t level )
 	return get_position_level( x_pos, 0, z_pos );
 }
 
-boolval is_node_pending( QuadTreeNode *node )
+static boolval is_node_awaiting( Node *node )
 {
-	return ( node->state == QTNS_PENDING_WHILE_NULL || node->state == QTNS_PENDING_WHILE_SUBDIVIDED ) ? true : false;
+	return node->state == NODE_STATE_AWAITING;
 }
 
-boolval is_node_subdivided( QuadTreeNode *node )
+static boolval is_node_subdivided( Node *node )
 {
-	return ( node->state == QTNS_SUBDIVIDED || node->state == QTNS_PENDING_WHILE_SUBDIVIDED || node->state == QTNS_LOADED_AND_SUBDIVIDED );
+	return node->type == NODE_TYPE_MANIFOLD;
 }
 
-boolval is_node_loaded( QuadTreeNode *node )
+static Node *search_node( int x_coord, int z_coord, size_t level, boolval *is_covered_out )
 {
-	return ( node->state == QTNS_LOADED || node->state == QTNS_LOADED_AND_SUBDIVIDED );
-}
+	Node *index_node = NULL;
+	boolval is_covered = false;
 
-// True if all of this node's lowest level child nodes are loaded.
-boolval is_node_covered( QuadTreeNode *node, boolval check_root )
-{
-	if ( node->state == QTNS_LOADED || check_root == true && node->state == QTNS_LOADED_AND_SUBDIVIDED ){
-		return true;
-	}else if ( is_node_subdivided( node ) ){
-		return (
-			is_node_covered( *( ( QuadTreeNode** ) node->children ), true ) &&
-			is_node_covered( *( ( QuadTreeNode** ) node->children + 1 ), true ) &&	
-			is_node_covered( *( ( QuadTreeNode** ) node->children + 2 ), true ) &&	
-			is_node_covered( *( ( QuadTreeNode** ) node->children + 3 ), true )	
-		);
+	for ( size_t index_level = 0; index_level <= level; ++index_level )
+	{
+		int index_x_coord, index_z_coord;
+		convert_coords_level( x_coord, z_coord, level, index_level, &index_x_coord, &index_z_coord );
+		int local_x_coord = index_x_coord % 2, local_z_coord = index_z_coord % 2;
+		int local_coord_index = local_z_coord * 2 + local_x_coord;
+
+		if ( index_level == 0 ){
+	
+			if ( index_x_coord == 0 && index_z_coord == 0 )
+			{
+				index_node = &g_quadtree_root;
+			}else{
+				index_node = NULL;
+			}
+
+		}else{
+
+			if ( is_node_subdivided( index_node ) )
+			{
+				index_node = *( ( Node** ) index_node->data + local_coord_index );
+			}else{
+				index_node = NULL;
+			}
+
+		}
+
+		if ( index_node && index_level < level && index_node->state == NODE_STATE_CHUNK && !is_covered )
+		{
+			is_covered = true;
+		}
+
+		if ( !index_node ) break;
 	}
-	else return false;
+
+	if ( is_covered_out ) *is_covered_out = is_covered;
+
+	return index_node;
 }
 
-// Set all of the children covering this node's quad's visibilities
-void set_covering_children_visibility( QuadTreeNode *node, boolval visibility, boolval affect_root )
+static PerspectiveObject *get_node_perspective_object( Node *node )
 {
-	if ( affect_root && node->state == QTNS_LOADED )
+	if ( node->state == NODE_STATE_CHUNK )
 	{
-		( ( PerspectiveObject* ) node->children )->visible = visibility;
-	}else if ( affect_root && node->state == QTNS_LOADED_AND_SUBDIVIDED )
-	{
-	  	( *( ( PerspectiveObject** ) ( ( QuadTreeNode** ) node->children + 4 ) ) )->visible = visibility;
-	}else if ( node->state == QTNS_SUBDIVIDED )
-	{
-		set_covering_children_visibility( *( ( QuadTreeNode** ) node->children ), visibility, true );
-		set_covering_children_visibility( *( ( QuadTreeNode** ) node->children + 1 ), visibility, true );
-		set_covering_children_visibility( *( ( QuadTreeNode** ) node->children + 2 ), visibility, true );
-		set_covering_children_visibility( *( ( QuadTreeNode** ) node->children + 3 ), visibility, true );
-	}
+		if ( node->type == NODE_TYPE_UNIQUE )
+		{
+			return node->data;
+		}else{
+			PerspectiveObject *obj = *( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) );
+			return obj;
+		}	
+	}else return NULL;
 }
 
-boolval should_node_be_hidden( QuadTreeNode *node )
-{
-	QuadTreeNode *ancestor = node;
+/// quadtree mutators
 
-	while ( ( ancestor = ancestor->parent ) )
-	{
-		if ( ancestor->state == QTNS_LOADED_AND_SUBDIVIDED ) return true;
-	}
-	return false;
-}
-
-/*
-	Should generate a new, empty node, with parent, children fields set to NULL and state field set to QTNS_NULL.
-*/
-QuadTreeNode *generate_node( )
+// returns a newly generated empty node
+static Node *generate_node()
 {
-	QuadTreeNode *node = malloc( sizeof( QuadTreeNode ) );	
-	node->state = QTNS_NULL;
-	node->parent = NULL;
-	node->children = NULL;
+	Node *node = malloc( sizeof( Node ) );
+	node->type = NODE_TYPE_UNIQUE;
+	node->state = NODE_STATE_EMPTY;
+	node->data = NULL;
 	return node;
 }
 
-/*
-	Should delete all of a node's children, set its children field to NULL, and set its state field to QTNS_NULL.	
-*/
-void clear_node_children( QuadTreeNode *node )
+// transforms a node such that its state becomes empty .ie requests deletion of its perspective object if it has one
+static void empty_node( Node *node )
 {
-	switch ( node->state ){
-
-		case QTNS_LOADED:
-			deletePerspectiveObject( (PerspectiveObject*) node->children );
-			break;
-		case QTNS_SUBDIVIDED:
-		case QTNS_PENDING_WHILE_SUBDIVIDED:
-			for ( size_t i = 0; i < 4; ++i )
-			{
-				QuadTreeNode *child_node = *( (QuadTreeNode**)node->children + i );
-				clear_node_children( child_node );
-				free( child_node );	
-			}
-			free( node->children );
-			break;
-		case QTNS_LOADED_AND_SUBDIVIDED:
-			for ( size_t i = 0; i < 4; ++i )
-			{
-				QuadTreeNode *child_node = *( (QuadTreeNode**)node->children + i );
-				clear_node_children( child_node );
-				free( child_node );	
-			}
-			deletePerspectiveObject( *( ( PerspectiveObject** ) ( ( QuadTreeNode** ) node->children + 4 ) ) );
-			free( node->children );
-			break;
-
-	}
-
-	node->children = NULL;
-	node->state = QTNS_NULL;
-}
-
-/*
-	Checks if a node under the QTNS_LOADED_AND_SUBDIVIDED state must be mutated to the QTNS_SUBDIVIDED state.
-	If so, deletes its perspective object and turns all children that covers its quad surface visible.
-*/
-void check_node_for_mutation( QuadTreeNode *node )
-{
-	if ( node->state != QTNS_LOADED_AND_SUBDIVIDED || !is_node_covered( node, false ) ) return;
-
-	PerspectiveObject *obj = *( ( PerspectiveObject** ) ( ( QuadTreeNode** ) node->children + 4 ) );
-	deletePerspectiveObject( obj );
-
-	node->children = realloc( node->children, sizeof( QuadTreeNode* ) * 4 );
-	node->state = QTNS_SUBDIVIDED;
-	set_covering_children_visibility( node, true, false );
-
-	check_node_ancestry_for_mutation( node );
-}
-
-/*
-	Checks for a possible node mutation in a node's ancestry & executes it if found.
-*/
-void check_node_ancestry_for_mutation( QuadTreeNode *node )
-{
-	QuadTreeNode *ancestor = node;
-
-	while ( ( ancestor = ancestor->parent ) )
+	if ( node->state == NODE_STATE_CHUNK )
 	{
-		if ( ancestor->state == QTNS_LOADED_AND_SUBDIVIDED )
+		if ( node->type == NODE_TYPE_UNIQUE )
 		{
-			check_node_for_mutation( ancestor );	
-			return;
+			push_outbound_data( 0, 0, 0, OUTBOUND_DATA_TYPE_REMOVE_CHUNK, node->data );
+			node->data = NULL;
+		}else{
+			PerspectiveObject *obj =  *( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) );
+			push_outbound_data( 0, 0, 0, OUTBOUND_DATA_TYPE_REMOVE_CHUNK, obj );
+			node->data = realloc( node->data, sizeof( Node* ) * 4 );
 		}
 	}
+
+	node->state = NODE_STATE_EMPTY;
 }
 
-/*
-	Transforms a node from the state QTNS_LOADED_AND_SUBDIVIDED to the state QTNS_LOADED.
-	Delete its child nodes.
-*/
-void regroup_node( QuadTreeNode *node )
+// deletes a node and its children
+static void delete_node( Node *node )
 {
-	if ( node->state != QTNS_LOADED_AND_SUBDIVIDED ) return;
+	empty_node( node );
 
-	PerspectiveObject *obj = *( ( PerspectiveObject** ) ( ( QuadTreeNode** ) node->children + 4 ) );
+	if ( node->type == NODE_TYPE_MANIFOLD )
+	{
+		for ( size_t i = 0; i < 4; ++i )
+		{
+			Node *child_node = *( ( Node** ) node->data + i );
+			delete_node( child_node );
+		}
+
+		free( node->data );
+	}
+
+	free( node );	
+}
+
+// transforms a unique node into a manifold node
+static void subdivide_node( Node *node )
+{
+	switch ( node->state )
+	{
+		case NODE_STATE_EMPTY:
+		case NODE_STATE_AWAITING:
+		node->data = malloc( sizeof( Node* ) * 4 );
+			break;
+		case NODE_STATE_CHUNK:
+		PerspectiveObject *obj = node->data;
+		node->data = malloc( sizeof( Node* ) * 4 + sizeof( PerspectiveObject* ) );
+		PerspectiveObject **obj_dest = ( PerspectiveObject** ) ( ( Node** ) node->data + 4 );
+		*obj_dest = obj;	
+			break;
+	}	
 
 	for ( size_t i = 0; i < 4; ++i )
 	{
-		QuadTreeNode *child_node = *( (QuadTreeNode**)node->children + i );
-		clear_node_children( child_node );
-		free( child_node );	
+		Node **sub_node_dest = ( Node** ) node->data + i;
+		*sub_node_dest = generate_node();
 	}
-	free( node->children );
-	node->children = obj;
-	obj->visible = !should_node_be_hidden( node );
-	node->state = QTNS_LOADED;
+
+	node->type = NODE_TYPE_MANIFOLD;
 }
 
-/*
-	Should delete all of a node's children, set its children to four new empty sub-node children, and set its state field to QTNS_SUBDIVIDED.
-	If the node's previous state was QTNS_LOADED, however, it should set its children pointer as a buffer containing all four new sub-node children along with the
-	perspective object which it contained pre-subdivision, and set its state to QTNS_LOADED_AND_SUBDIVIDED.
-*/
-void subdivide_node( QuadTreeNode *node )
+// transforms a manifold node into a unique node
+static void merge_node( Node *node )
 {
-	if ( node->state != QTNS_LOADED )
+	void *initial_node_data = node->data;
+
+	if ( node->state == NODE_STATE_CHUNK )
 	{
-		clear_node_children( node );
-		node->state = QTNS_SUBDIVIDED;
-		node->children = malloc( sizeof( QuadTreeNode* ) * 4 );
+		PerspectiveObject *obj = *( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) );
+		node->data = obj;
 	}else{
-		PerspectiveObject *obj = ( PerspectiveObject* ) node->children;
-		node->state = QTNS_LOADED_AND_SUBDIVIDED;
-		node->children = malloc( sizeof( QuadTreeNode* ) * 4 + sizeof( PerspectiveObject* ) );	
-		*( ( PerspectiveObject** ) ( ( QuadTreeNode** ) node->children + 4 ) ) = obj;
-		obj->visible = !should_node_be_hidden( node );
+		node->data = NULL;
 	}
 
-	for ( size_t i = 0 ; i < 4; ++i )
+	for ( size_t i = 0; i < 4; ++i )
 	{
-		QuadTreeNode *child_node = generate_node();
-		child_node->parent = node;	
-		*( ( QuadTreeNode** ) node->children + i ) = child_node;
+		delete_node( *( ( Node** ) initial_node_data + i ) );
 	}
+	free( initial_node_data );
 }
 
-/*
-	Looks for the node with given specified coordinates and level.
-*/
-QuadTreeNode *search_node( int x, int z, size_t level )
+// registers a perspective object within an awaiting node
+static void fill_awaiting_node( Node *node, PerspectiveObject *obj )
 {
-	QuadTreeNode *search_node = &root;
-	for ( size_t search_level = 0; search_level <= level; ++search_level )
+
+	if ( node->type == NODE_TYPE_UNIQUE )
 	{
-		boolval last = ( search_level >= level ) ? true : false;
-
-		if ( last == false ){
-
-			if ( !is_node_subdivided( search_node ) ) break;
-			
-			int next_level_x_coord, next_level_z_coord;
-			convert_coords_level( x, z, level, search_level+1, &next_level_x_coord, &next_level_z_coord );
-			int local_x_coord = next_level_x_coord % 2, local_z_coord = next_level_z_coord % 2;
-			int local_index = local_z_coord * 2 + local_x_coord;
-			search_node = *( (QuadTreeNode**) search_node->children + local_index );
-
-		}else{
-			return search_node;
-		}
-
-				
-	}
-
-	return NULL;
-}
-
-void request_node_generation( QuadTreeNode* node, int x_coord, int z_coord, size_t level )
-{
-	if ( is_node_pending( node ) || is_node_loaded( node ) ) return;
-
-	enum QuadTreeNodeState previous_state = node->state;
-
-	switch ( previous_state ){
-
-		case QTNS_NULL:
-			node->state = QTNS_PENDING_WHILE_NULL;
-			break;
-		case QTNS_SUBDIVIDED:
-			node->state = QTNS_PENDING_WHILE_SUBDIVIDED;
-			break;
-
-	}
-
-	request_generation( x_coord, z_coord, level, 5 );
-}
-
-void push_generation_result( int x, int z, size_t level, PerspectiveObject* obj )
-{
-
-	QuadTreeNode *node = search_node( x, z, level );
-	if ( node == NULL || !( is_node_pending( node ) ) )
-	{
-		deletePerspectiveObject( obj );
+		node->data = obj;	
 	}else{
-		clear_node_children( node );	
-		node->state = QTNS_LOADED;
-		node->children = obj;
-		obj->visible = !should_node_be_hidden( node );
+		node->data = realloc( node->data, sizeof( Node** ) * 4 + sizeof( PerspectiveObject** ) );
+		*( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) ) = obj;
+	}
 
-		check_node_ancestry_for_mutation( node );
-	}	
+	node->state = NODE_STATE_CHUNK;
 
 }
 
-void poll_node( QuadTreeNode *node, int x, int z, size_t level )
+// sets the visibility of the perspective object tied to a node, if one exists
+static void set_node_visibility( Node *node, boolval visibility )
 {
-	size_t target_level = max( level, get_quad_level( x, z, level ) );
+	PerspectiveObject *obj = get_node_perspective_object( node );
+	if ( obj ) push_outbound_data( 0, 0, 0, visibility ? OUTBOUND_DATA_TYPE_SET_CHUNK_VISIBLE : OUTBOUND_DATA_TYPE_SET_CHUNK_INVISIBLE, obj );
+}
 
-	if ( level < target_level ){
-	
-		if ( !is_node_subdivided( node ) ){
-			subdivide_node( node );
-		}
-
+// sets the visibilities of all of the direct and indirect children perspective objects of a node ( doesn't alter the visibility of the node's own perspective object )
+static void set_node_children_visibility( Node *node, boolval visibility )
+{
+	if ( node->type == NODE_TYPE_MANIFOLD )
+	{
 		for ( size_t i = 0; i < 4; ++i )
 		{
-			int local_x_coord = i % 2;
-			int local_z_coord = ( i - local_x_coord ) / 2;
-
-			int child_x_coord = x * 2 + local_x_coord, child_z_coord = z * 2 + local_z_coord;
-
-			poll_node( *( (QuadTreeNode**) node->children + i ), child_x_coord, child_z_coord, level + 1 );
+			Node *child_node = *( ( Node** ) node->data + i );
+			set_node_visibility( child_node, visibility );
+			set_node_children_visibility( child_node, visibility );
 		}
+	}
+}
 
-	}else{
-		if ( !is_node_loaded( node ) && !is_node_pending( node ) ){
-			request_node_generation( node, x, z, level );
-		}else if ( node->state == QTNS_LOADED_AND_SUBDIVIDED )
+/// quadtree worker thread utilities
+
+static void poll_inbound_data()
+{
+	pthread_mutex_lock( &g_inbound_mtx );
+
+	for ( size_t i = 0; i < MAX_DATA_TRANSFERTS; ++i )
+	{
+
+		InboundData data = g_inbound[ i ];	
+
+		if ( !data.done && data.obj )
 		{
-			regroup_node( node );
-		}
-	}	
+		
+			int x_coord = data.x_pos / data.size, z_coord = data.z_pos;
+			size_t level = sqrt( g_quadtree_root_size / data.size );
+			boolval is_covered; // is the node a direct/indirect child of a manifold node posessing a perspective object ?
+			Node *node = search_node( x_coord, z_coord, level, &is_covered );
+			size_t current_level = get_quad_level( x_coord, z_coord, level );
 
+			// ...
+			
+
+			if ( node && is_node_awaiting( node ) )
+			{
+				fill_awaiting_node( node, data.obj );	
+			}
+
+			g_inbound[ i ].done = true;
+			break;
+		}
+
+	}
+
+	pthread_mutex_unlock( &g_inbound_mtx );
+}
+
+static void poll_node( int x_coord, int z_coord, size_t level, Node *node )
+{
+
+}
+
+static void poll_quadtree()
+{
+	poll_node( 0, 0, 0, &g_quadtree_root );
+}
+
+/// quadtree worker thread runtime
+
+static void *quadtree_worker_thread( void *data )
+{
+	boolval running = true;
+
+	while ( running )
+	{
+
+		pthread_mutex_lock( &g_quadtree_mtx );
+
+		poll_inbound_data();
+		poll_quadtree();
+
+		running = g_quadtree_thread_running;
+		pthread_mutex_unlock( &g_quadtree_mtx );
+	
+
+	}
+
+	pthread_exit( EXIT_SUCCESS );
+}
+
+/// terrain control utilities
+
+static void poll_outbound_data()
+{
+	pthread_mutex_lock( &g_outbound_mtx );
+
+	for ( size_t i = 0; i < MAX_DATA_TRANSFERTS; ++i )
+	{
+
+		OutboundData data = g_outbound[ i ];	
+
+		if ( !data.done )
+		{
+		
+			switch ( data.type )
+			{
+				case OUTBOUND_DATA_TYPE_GENERATE_CHUNK:
+					request_generation( data.x_pos, data.z_pos, data.size, TESSELLATIONS );
+					break;
+				case OUTBOUND_DATA_TYPE_REMOVE_CHUNK:
+					if ( data.obj ) deletePerspectiveObject( data.obj );
+					break;
+				case OUTBOUND_DATA_TYPE_SET_CHUNK_VISIBLE:
+					if ( data.obj ) data.obj->visible = true;
+					break;
+				case OUTBOUND_DATA_TYPE_SET_CHUNK_INVISIBLE:
+					if ( data.obj ) data.obj->visible = false;
+					break;
+			}
+			g_outbound[ i ].done = true;
+			
+		}
+
+	}
+
+	pthread_mutex_unlock( &g_outbound_mtx );
+}
+
+static void fetch_subject_position()
+{
+	g_quadtree_subject_position.x = g_cameraPosition[ 0 ];
+	g_quadtree_subject_position.y = g_cameraPosition[ 1 ];
+	g_quadtree_subject_position.z = g_cameraPosition[ 2 ];
+}
+
+/// terrain control
+
+void push_generation_result( float x_pos, float z_pos, float size, PerspectiveObject* obj )
+{
+	push_inbound_data( x_pos, z_pos, size, obj );
+}
+
+void initialize_terrain()
+{
+	pthread_mutex_init( &g_quadtree_mtx, NULL );
+	pthread_mutex_init( &g_inbound_mtx, NULL );
+	pthread_mutex_init( &g_outbound_mtx, NULL );
+
+	pthread_create( &g_quadtree_thread, NULL, quadtree_worker_thread, NULL );
+}
+
+void terminate_terrain()
+{
+	pthread_mutex_lock( &g_quadtree_mtx );
+	g_quadtree_thread_running = false;
+	pthread_mutex_unlock( &g_quadtree_mtx );
+
+	pthread_join( g_quadtree_thread, NULL );
+
+	pthread_mutex_destroy( &g_outbound_mtx );
+	pthread_mutex_destroy( &g_inbound_mtx );
+	pthread_mutex_destroy( &g_quadtree_mtx );
 }
 
 void poll_terrain()
 {
-	poll_node( &root, 0, 0, 0 );
+	pthread_mutex_lock( &g_quadtree_mtx );
+	fetch_subject_position();
+	pthread_mutex_unlock( &g_quadtree_mtx );
+
+	poll_outbound_data();
 }
+
+
