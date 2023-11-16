@@ -447,7 +447,7 @@ void render()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	renderWorkspace();
+	render_workspace();
 }
 
 int main( int argc, char* argv[] )
@@ -461,7 +461,7 @@ int main( int argc, char* argv[] )
 	initialize_default_shaders();
 	initialize_default_materials();
 
-	initializeWorkspace();
+	initialize_workspace();
 
 	initialize_generator();
 	initialize_terrain();
@@ -503,7 +503,7 @@ int main( int argc, char* argv[] )
 	skyQuad->useDepth = false;
 
 
-	request_generation( 0, 0, 100, 4 );
+//	request_generation( 0, 0, 100, 4 );
 
 	/*
 

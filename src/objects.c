@@ -168,17 +168,18 @@ void setObjectVBO(PerspectiveObject* objPtr, GLuint vboHandle, enum BufferType t
 
 DynamicArray* g_workspace = NULL;
 
-void initializeWorkspace()
+void initialize_workspace()
 {
 	if (g_workspace != NULL) return;
 	g_workspace = createDynamicArray(sizeof(PerspectiveObject*));
 }
 
-PerspectiveObject* createPerspectiveObject()
+PerspectiveObject* createPerspectiveObject( )
 {
 	PerspectiveObject *obj = calloc( 1, sizeof( PerspectiveObject ) ); 
 	obj->useDepth = true;
 	obj->visible = true;
+	obj->material = NULL;
 
 	PerspectiveObject** data = pushDataInDynamicArray( g_workspace, &obj );
 	return *data;
@@ -189,12 +190,12 @@ void deletePerspectiveObject( PerspectiveObject *obj )
 	removeDataFromDynamicArray( g_workspace, obj, true );
 }
 
-void clearWorkspace()
+void clear_workspace()
 {
 	clearDynamicArray( g_workspace );
 }
 
-void renderWorkspace()
+void render_workspace()
 {
 	PerspectiveObject** iterator = (PerspectiveObject**)g_workspace->data;
 	for (size_t i = 0; i < g_workspace->usage; ++i){

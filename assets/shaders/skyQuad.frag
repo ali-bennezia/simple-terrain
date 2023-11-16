@@ -65,7 +65,7 @@ void main()
 
 	finalColor = render_sky( finalColor, unitSphereHitpoint );
 
-	//sun
+	//suns
 
 	finalColor = render_sun( finalColor, unitSphereHitpoint, sunDirection, 0.002, 0.002, 0.0025 );
 	finalColor = render_sun( finalColor, unitSphereHitpoint, normalize( vec3(-1.4, 1, 0.2) ), 0.00002, 0.001, 0.0004 );

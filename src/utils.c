@@ -47,8 +47,8 @@ void* pushDataInDynamicArray(DynamicArray* arr, void* data)
 	}
 
 	char* destination = (char*)arr->data + targetIndex * arr->dataSizeInBytes;
-
 	memcpy(destination, data, arr->dataSizeInBytes);
+	return ( void* ) destination;
 }
 
 int removeDataAtIndexFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp)
@@ -163,10 +163,21 @@ GLuint initialize_program(const char* vertexShaderPath, const char* fragmentShad
 	return program;
 }
 
-GLuint createAndFillVBO(void* data, size_t dataSizeBytes, GLenum bufferTarget, GLenum bufferUsage)
+GLuint createVBO()
 {
 	GLuint bufferIdentifier;
 	glGenBuffers(1, &bufferIdentifier);
+	return bufferIdentifier;
+}
+
+void deleteVBO( GLuint id )
+{
+	glDeleteBuffers( 1, &id );
+}
+
+GLuint createAndFillVBO(void* data, size_t dataSizeBytes, GLenum bufferTarget, GLenum bufferUsage)
+{
+	GLuint bufferIdentifier = createVBO();
 	glBindBuffer(bufferTarget, bufferIdentifier);
 	glBufferData(bufferTarget, dataSizeBytes, data, bufferUsage);
 	return bufferIdentifier;

@@ -4,12 +4,15 @@
 #include "utils.h"
 #include "boolvals.h"
 
+#define TESSELLATIONS 2
+
 struct PerspectiveObject;
 typedef struct PerspectiveObject PerspectiveObject;
 
-// terrain control
+// quadtree mutators
+void push_node_terrain( int x_coord, int z_coord, size_t level, PerspectiveObject *obj );
 
-void push_generation_result( float x_pos, float z_pos, float size, PerspectiveObject* obj );
+// terrain control
 
 void initialize_terrain();
 void terminate_terrain();

@@ -28,9 +28,9 @@ void setObjectVBO(PerspectiveObject* objPtr, GLuint vboHandle, enum BufferType t
 void getPerspectiveObjectModelMatrix(PerspectiveObject* obj, mat4 out);
 void drawPerspectiveObject(PerspectiveObject* obj);
 
-void initializeWorkspace();
-void clearWorkspace();
-void renderWorkspace();
+void initialize_workspace();
+void clear_workspace();
+void render_workspace();
 PerspectiveObject* createPerspectiveObject();
 void deletePerspectiveObject( PerspectiveObject *obj );
 

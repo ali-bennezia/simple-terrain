@@ -31,6 +31,8 @@ int removeDataFromDynamicArray(DynamicArray* arr, void* data, boolval freeUp);
 char* getFile(const char* path, int* length_out);
 GLuint initialize_program(const char* vertexShaderPath, const char* fragmentShaderPath);
 
+GLuint createVBO();
+void deleteVBO( GLuint id );
 GLuint createAndFillVBO(void* data, size_t dataBytes, GLenum bufferTarget, GLenum bufferUsage);
 GLuint loadTexture(const char* path);
 
