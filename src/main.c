@@ -18,6 +18,7 @@
 #include "terrain.h"
 #include "generator.h"
 #include "renderer.h"
+#include "pools.h"
 
 //Window params
 GLFWwindow* g_window = NULL;
@@ -215,6 +216,7 @@ void set_camera_FOV(float FOV)
 
 void cleanup()
 {
+	terminate_pools();
 	terminate_terrain();
 	terminate_generator();
 	terminate_renderer();
@@ -395,7 +397,6 @@ boolval initialize()
 
 	glClearColor(0, 0, 0, 1);
 
-
 	return false;
 
 }
@@ -465,6 +466,8 @@ int main( int argc, char* argv[] )
 
 	initialize_generator();
 	initialize_terrain();
+
+	init_pools();
 
 	set_camera_move_speed(50);
 	set_camera_rotate_speed(1);

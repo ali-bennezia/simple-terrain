@@ -230,8 +230,6 @@ void *thread_job( void *data )
 		request.verticesCount = verticesCount;
 		request.normalsCount = normalsCount;
 
-		//request.vertices_vbo_data.buffer_data = vertices;
-		//request.normals_vbo_data.buffer_data = normals;
 		memcpy( request.vertices_vbo_data.buffer_data, vertices, verticesCount * sizeof( float ) * 3 );
 		memcpy( request.normals_vbo_data.buffer_data, normals, normalsCount * sizeof( float ) * 3 );
 
@@ -317,13 +315,13 @@ void request_generation( int x_coord, int z_coord, size_t level, size_t tessella
 			// vertices buffer
 			pending_requests[i].vertices_vbo_data.buffer_id = createVBO();
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
-			glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_STATIC_DRAW );
+			glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
 			pending_requests[i].vertices_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );	
 
 			// normals buffer
 			pending_requests[i].normals_vbo_data.buffer_id = createVBO();
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].normals_vbo_data.buffer_id );
-			glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_STATIC_DRAW );
+			glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
 			pending_requests[i].normals_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );	
 
 			pending_requests[i].pending = true;	
