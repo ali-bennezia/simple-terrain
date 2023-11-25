@@ -6,6 +6,7 @@
 #include "objects.h"
 #include "materials.h"
 #include "terrain.h"
+#include "pools.h"
 
 #include <stdlib.h>
 #include <pthread.h>
@@ -314,12 +315,14 @@ void request_generation( int x_coord, int z_coord, size_t level, size_t tessella
 
 			// vertices buffer
 			pending_requests[i].vertices_vbo_data.buffer_id = createVBO();
+			//pending_requests[i].vertices_vbo_data.buffer_id = get_pool_buffer( "Quadtree" );
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
 			glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
 			pending_requests[i].vertices_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );	
 
 			// normals buffer
 			pending_requests[i].normals_vbo_data.buffer_id = createVBO();
+			//pending_requests[i].normals_vbo_data.buffer_id = get_pool_buffer( "Quadtree" );
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].normals_vbo_data.buffer_id );
 			glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
 			pending_requests[i].normals_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );	

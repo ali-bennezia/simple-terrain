@@ -9,6 +9,7 @@
 #include "generator.h"
 #include "factory.h"
 #include "noises.h"
+#include "pools.h"
 
 #define MAX_TRANSFERTS 80
 const int QUAD_COUNT = 1 * pow( 2, TESSELLATIONS*2 );
@@ -285,11 +286,13 @@ void initialize_terrain()
 		NULL
 	};
 	g_quadtree_root = empty_node;
+	
+	gen_pool( "Quadtree", sizeof( float ) * 3 * QUAD_COUNT * 6 );
 }
 
 void terminate_terrain()
 {
-
+	remove_pool( "Quadtree" );
 }
 
 void poll_terrain()

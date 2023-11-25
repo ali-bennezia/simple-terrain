@@ -216,9 +216,10 @@ void set_camera_FOV(float FOV)
 
 void cleanup()
 {
-	terminate_pools();
 	terminate_terrain();
 	terminate_generator();
+
+	terminate_pools();
 	terminate_renderer();
 
 	if (g_window != NULL)
@@ -458,6 +459,7 @@ int main( int argc, char* argv[] )
 		return true;
 
 	initialize_renderer();
+	init_pools();
 
 	initialize_default_shaders();
 	initialize_default_materials();
@@ -467,7 +469,6 @@ int main( int argc, char* argv[] )
 	initialize_generator();
 	initialize_terrain();
 
-	init_pools();
 
 	set_camera_move_speed(50);
 	set_camera_rotate_speed(1);
