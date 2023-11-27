@@ -148,6 +148,13 @@ static void empty_node( Node *node )
 		obj = *( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) );
 		node->data = realloc( node->data, sizeof( Node* ) * 4 );
 	}
+
+	obj->meshInitialized = false;
+	obj->normalsInitialized = false;
+	obj->vertices = 0;
+	yield_pool_buffer( "Quadtree", obj->meshVBO );
+	yield_pool_buffer( "Quadtree", obj->normalsVBO );
+
 	deletePerspectiveObject( obj );
 	node->state = NODE_STATE_EMPTY;
 }

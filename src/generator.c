@@ -314,17 +314,17 @@ void request_generation( int x_coord, int z_coord, size_t level, size_t tessella
 			pending_requests[i].tessellations = tessellations;
 
 			// vertices buffer
-			pending_requests[i].vertices_vbo_data.buffer_id = createVBO();
-			//pending_requests[i].vertices_vbo_data.buffer_id = get_pool_buffer( "Quadtree" );
+			//pending_requests[i].vertices_vbo_data.buffer_id = createVBO();
+			pending_requests[i].vertices_vbo_data.buffer_id = get_pool_buffer( "Quadtree" );
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
-			glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
+			//glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
 			pending_requests[i].vertices_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );	
 
 			// normals buffer
-			pending_requests[i].normals_vbo_data.buffer_id = createVBO();
-			//pending_requests[i].normals_vbo_data.buffer_id = get_pool_buffer( "Quadtree" );
+			//pending_requests[i].normals_vbo_data.buffer_id = createVBO();
+			pending_requests[i].normals_vbo_data.buffer_id = get_pool_buffer( "Quadtree" );
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].normals_vbo_data.buffer_id );
-			glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
+			//glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
 			pending_requests[i].normals_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );	
 
 			pending_requests[i].pending = true;	

@@ -1,0 +1,54 @@
+#include "utils.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+DynamicArray* createDynamicArray(size_t dataSizeInBytes)
+{
+	DynamicArray *arr = malloc( sizeof(DynamicArray) );
+	arr->data = malloc(dataSizeInBytes*10);
+	arr->usage = 0;
+	arr->size = 10;
+	arr->dataSizeInBytes = dataSizeInBytes;
+
+	return arr;
+}
+
+void clearDynamicArray(DynamicArray* arr)
+{
+	arr->usage = 0;
+	arr->size = 10;
+	arr->data = realloc( arr->data, arr->dataSizeInBytes * arr->size );
+}
+
+void deleteDynamicArray(DynamicArray* arr)
+{
+	if (!arr) return;
+	if (arr->data) free(arr->data);
+	free(arr);
+}
+
+void* pushDataInDynamicArray(DynamicArray* arr, void* data)
+{
+	const size_t targetIndex = arr->usage;
+	
+	arr->usage++;
+
+	if (arr->usage >= arr->size){
+		arr->size *= 2;
+		arr->data = realloc(arr->data, arr->size*arr->dataSizeInBytes);
+	}
+
+	char* destination = (char*)arr->data + targetIndex * arr->dataSizeInBytes;
+	memcpy(destination, data, arr->dataSizeInBytes);
+
+		*( ( char* ) destination + i ) = *( ( char* ) source + i );
+	}	
+}

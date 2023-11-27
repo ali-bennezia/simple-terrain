@@ -9,6 +9,8 @@
 #include "utils.h"
 #include "boolvals.h"
 
+DynamicArray *g_pools;
+
 // definitions
 
 typedef struct _BuffData {
@@ -22,7 +24,6 @@ typedef struct _BuffPool {
 	size_t buffer_data_size;
 } BuffPool;
 
-DynamicArray *g_pools;
 
 // static utils
 
@@ -88,8 +89,8 @@ int gen_pool( char* identifier, unsigned int buffer_data_size )
 		GLuint buff_id;
 		glGenBuffers( 1, &buff_id );
 		pool.buffers[i].id = buff_id;
-		glBindBuffer( GL_VERTEX_ARRAY, buff_id );
-		glBufferData( GL_VERTEX_ARRAY, buffer_data_size, NULL, GL_DYNAMIC_DRAW );	
+		glBindBuffer( GL_ARRAY_BUFFER, buff_id );
+		glBufferData( GL_ARRAY_BUFFER, buffer_data_size, NULL, GL_DYNAMIC_DRAW );	
 	}
 
 	pushDataInDynamicArray( g_pools, &pool );
@@ -132,7 +133,7 @@ int yield_pool_buffer( char *identifier, int buff )
 
 	for ( size_t i = 0; i < BUFFERS_PER_POOL; ++i )
 	{
-		if ( pool->buffers[ i ].id != buff ) continue;
+		if ( ( int ) pool->buffers[ i ].id != buff ) continue;
 		pool->buffers[ i ].busy = false;
 		return 0;
 	}
