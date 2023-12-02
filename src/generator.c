@@ -6,7 +6,9 @@
 #include "objects.h"
 #include "materials.h"
 #include "terrain.h"
-#include "pools.h"
+#include "mempools.h"
+#include "vbopools.h"
+#include "debug.h"
 
 #include <stdlib.h>
 #include <pthread.h>
@@ -19,14 +21,13 @@
 #define MAX_THREADS 10
 #define MAX_PENDING_REQUESTS 100
 
+static void create_threads();
+
 extern float g_quadtree_root_size;
 extern const int QUAD_COUNT;
 
 struct thread_state {
-
 	pthread_t thread;
-	boolval running;
-
 };
 
 struct thread_state threads[MAX_THREADS];
@@ -54,6 +55,7 @@ struct generation_request {
 struct generation_request pending_requests[MAX_PENDING_REQUESTS];
 boolval pending_fetches = false;
 pthread_mutex_t pending_requests_mtx;
+static boolval g_threads_running = false;
 
 void initialize_generator()
 {
@@ -61,11 +63,7 @@ void initialize_generator()
 	pthread_mutex_init( &pending_requests_mtx, NULL );
 
 	pthread_mutex_lock( &threads_mtx );
-
-	for ( size_t i = 0; i < MAX_THREADS; ++i ){
-		threads[i].running = false;
-	}
-
+	g_threads_running = true;
 	pthread_mutex_unlock( &threads_mtx );
 
 	pthread_mutex_lock( &pending_requests_mtx );
@@ -77,6 +75,8 @@ void initialize_generator()
 	}
 
 	pthread_mutex_unlock( &pending_requests_mtx );
+
+	create_threads();
 }
 
 extern Material g_defaultTerrainMaterialLit;
@@ -84,9 +84,7 @@ extern GLFWwindow* g_window;
 
 void poll_generator()
 {
-
 	pthread_mutex_lock( &pending_requests_mtx );
-
 
 	if ( pending_fetches == false ) {
 		pthread_mutex_unlock( &pending_requests_mtx );
@@ -124,27 +122,6 @@ void poll_generator()
 				NORMALS
 			);
 
-			/*setObjectVBO(
-				requested_terrain, 
-				createAndFillVBO(
-					pending_requests[i].vertices, 
-					pending_requests[i].verticesCount*3*sizeof(float), 
-					GL_ARRAY_BUFFER, 
-					GL_STATIC_DRAW
-				), 
-				VERTICES
-			);
-			setObjectVBO(
-				requested_terrain, 
-				createAndFillVBO(
-					pending_requests[i].normals, 
-					pending_requests[i].normalsCount*3*sizeof(float), 
-					GL_ARRAY_BUFFER, 
-					GL_STATIC_DRAW
-				), 
-				NORMALS
-			);*/
-
 			free( pending_requests[i].vertices );
 			free( pending_requests[i].normals );
 
@@ -153,18 +130,23 @@ void poll_generator()
 
 			push_node_terrain( pending_requests[i].x_coord, pending_requests[i].z_coord, pending_requests[i].level, requested_terrain );
 
+			pthread_mutex_unlock( &pending_requests_mtx );
+			return;
+
 		}
 
 	}
 
 	pending_fetches = false;
-
-	pthread_mutex_unlock( &pending_requests_mtx );	
-
+	pthread_mutex_unlock( &pending_requests_mtx );
 }
 
 void terminate_generator()
 {
+	pthread_mutex_lock( &threads_mtx );
+	g_threads_running = false;
+	pthread_mutex_unlock( &threads_mtx );
+
 	pthread_mutex_destroy( &threads_mtx );
 	pthread_mutex_destroy( &pending_requests_mtx );
 }
@@ -188,17 +170,20 @@ void *thread_job( void *data )
 
 
 
-	boolval found = true;
+	boolval running = true;
 
-	while ( found == true ) {
+	while ( running ) {
 
-		found = false;
+		pthread_mutex_lock( &threads_mtx );
+		running = g_threads_running;
+		pthread_mutex_unlock( &threads_mtx );
+
+		boolval found = false;
 
 		int request_index;
 		struct generation_request request;
 		
 		pthread_mutex_lock( &pending_requests_mtx );
-
 		int search_result = find_request_index( true, false, false );	
 
 		if ( search_result != -1 ) {
@@ -206,10 +191,13 @@ void *thread_job( void *data )
 			request_index = search_result;
 			request = pending_requests[ search_result ];
 		}
-
 		pthread_mutex_unlock( &pending_requests_mtx );	
 
-		if ( found == false ) break;
+		if ( found == false )
+		{
+			thread_sleep(50);
+			continue;
+		}
 		
 		float *vertices = NULL, *normals = NULL;
 		size_t verticesCount, normalsCount;
@@ -252,45 +240,20 @@ void *thread_job( void *data )
 
 	// thread end
 
-	// set running to false
-
-	pthread_mutex_lock( &threads_mtx );
-
-	for ( size_t i = 0; i < MAX_THREADS; ++i ){
-
-		if ( pthread_equal( self, threads[i].thread ) != 0 ){
-			threads[i].running = false;
-			break;
-		}
-
-	}
-	
-	pthread_mutex_unlock( &threads_mtx );	
-
 	// exit
 
 	pthread_exit( NULL );
 
 }
 
-void create_threads()
+static void create_threads()
 {
 	pthread_mutex_lock( &threads_mtx );
 	for ( size_t i = 0; i < MAX_THREADS; ++i ){
-		if ( threads[i].running == true) continue;
-
-		threads[i].running = true;
 		pthread_create( &(threads[i].thread), NULL, thread_job, NULL );
 	}
 	pthread_mutex_unlock( &threads_mtx );
-
 }
-
-/*
-	struct generation_request_buffer_data vertices_vbo_data;
-	struct generation_request_buffer_data UVs_vbo_data;
-	struct generation_request_buffer_data normals_vbo_data;
-*/
 
 void request_generation( int x_coord, int z_coord, size_t level, size_t tessellations )
 {
@@ -314,18 +277,14 @@ void request_generation( int x_coord, int z_coord, size_t level, size_t tessella
 			pending_requests[i].tessellations = tessellations;
 
 			// vertices buffer
-			//pending_requests[i].vertices_vbo_data.buffer_id = createVBO();
-			pending_requests[i].vertices_vbo_data.buffer_id = get_pool_buffer( "Quadtree" );
+			pending_requests[i].vertices_vbo_data.buffer_id = get_vbo_pool_buffer( "Quadtree" );
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
-			//glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
-			pending_requests[i].vertices_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );	
+			pending_requests[i].vertices_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
 
 			// normals buffer
-			//pending_requests[i].normals_vbo_data.buffer_id = createVBO();
-			pending_requests[i].normals_vbo_data.buffer_id = get_pool_buffer( "Quadtree" );
+			pending_requests[i].normals_vbo_data.buffer_id = get_vbo_pool_buffer( "Quadtree" );
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].normals_vbo_data.buffer_id );
-			//glBufferData( GL_ARRAY_BUFFER, QUAD_COUNT * 6 * 3 * sizeof( float ), NULL, GL_DYNAMIC_DRAW );
-			pending_requests[i].normals_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );	
+			pending_requests[i].normals_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
 
 			pending_requests[i].pending = true;	
 			pending_requests[i].done = false;
@@ -338,9 +297,5 @@ void request_generation( int x_coord, int z_coord, size_t level, size_t tessella
 	}
 
 	pthread_mutex_unlock( &pending_requests_mtx );	
-
-	if ( found == true ){
-		create_threads();
-	}	
 }
 

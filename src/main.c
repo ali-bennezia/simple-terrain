@@ -1,3 +1,6 @@
+#define DEBUG 1
+#define _DEBUG 1
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -18,7 +21,10 @@
 #include "terrain.h"
 #include "generator.h"
 #include "renderer.h"
-#include "pools.h"
+#include "mempools.h"
+#include "vbopools.h"
+
+#include "debug.h"
 
 //Window params
 GLFWwindow* g_window = NULL;
@@ -219,7 +225,8 @@ void cleanup()
 	terminate_terrain();
 	terminate_generator();
 
-	terminate_pools();
+	terminate_vbo_pools();
+	terminate_mem_pools();
 	terminate_renderer();
 
 	if (g_window != NULL)
@@ -459,7 +466,8 @@ int main( int argc, char* argv[] )
 		return true;
 
 	initialize_renderer();
-	init_pools();
+	init_mem_pools();
+	init_vbo_pools();
 
 	initialize_default_shaders();
 	initialize_default_materials();
@@ -742,6 +750,7 @@ int main( int argc, char* argv[] )
 
 		update();
 		render();
+
 		poll_generator();
 		poll_terrain();
 

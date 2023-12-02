@@ -1,5 +1,7 @@
 #include "terrain.h"
 
+#include <string.h>
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
@@ -9,7 +11,10 @@
 #include "generator.h"
 #include "factory.h"
 #include "noises.h"
-#include "pools.h"
+#include "mempools.h"
+#include "vbopools.h"
+
+#include "debug.h"
 
 #define MAX_TRANSFERTS 80
 const int QUAD_COUNT = 1 * pow( 2, TESSELLATIONS*2 );
@@ -125,7 +130,8 @@ static void request_node_terrain_generation( Node* node, int x_coord, int z_coor
 // generates a node
 static Node *generate_node()
 {
-	Node *node = malloc( sizeof( Node ) );
+	//Node *node = malloc( sizeof( Node ) );
+	Node *node = get_mem_pool_buffer( "Node" );
 	node->type = NODE_TYPE_UNIQUE;
 	node->state = NODE_STATE_EMPTY;
 	node->data = NULL;
@@ -146,14 +152,18 @@ static void empty_node( Node *node )
 		node->data = NULL;
 	}else{
 		obj = *( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) );
-		node->data = realloc( node->data, sizeof( Node* ) * 4 );
+		//node->data = realloc( node->data, sizeof( Node* ) * 4 );
+		void *new_data = get_mem_pool_buffer( "EmptyManifold" ), *old_data = node->data;
+		memcpy( new_data, old_data, sizeof( Node * ) * 4 );
+		node->data = new_data;
+		yield_mem_pool_buffer( "ChunkManifold", old_data );
 	}
 
 	obj->meshInitialized = false;
 	obj->normalsInitialized = false;
 	obj->vertices = 0;
-	yield_pool_buffer( "Quadtree", obj->meshVBO );
-	yield_pool_buffer( "Quadtree", obj->normalsVBO );
+	yield_vbo_pool_buffer( "Quadtree", obj->meshVBO );
+	yield_vbo_pool_buffer( "Quadtree", obj->normalsVBO );
 
 	deletePerspectiveObject( obj );
 	node->state = NODE_STATE_EMPTY;
@@ -170,9 +180,15 @@ static void delete_node( Node *node )
 			Node *child_node = *( ( Node** ) node->data + i );
 			delete_node( child_node );	
 		}
-		free( node->data );
+		//free( node->data );
+		if ( node->state == NODE_STATE_CHUNK ){
+			yield_mem_pool_buffer( "ChunkManifold", node->data );
+		}else{
+			yield_mem_pool_buffer( "EmptyManifold", node->data );
+		}
 	} 
-	free( node );	
+	//free( node );	
+	yield_mem_pool_buffer( "Node", node );
 }
 
 // transforms a unique node into a manifold node
@@ -183,10 +199,12 @@ static void subdivide_node( Node *node )
 	if ( node->state == NODE_STATE_CHUNK )
 	{
 		PerspectiveObject *obj = node->data; 
-		node->data = malloc( sizeof( Node* ) * 4 + sizeof( PerspectiveObject* ) );
+		//node->data = malloc( sizeof( Node* ) * 4 + sizeof( PerspectiveObject* ) );
+		node->data = get_mem_pool_buffer( "ChunkManifold" );
 		*( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) ) = obj;
 	}else{
-		node->data = malloc( sizeof( Node* ) * 4 );
+		//node->data = malloc( sizeof( Node* ) * 4 );
+		node->data = get_mem_pool_buffer( "EmptyManifold" );
 	}
 	
 	for ( size_t i = 0; i < 4; ++i )
@@ -219,7 +237,12 @@ static void remerge_node( Node *node )
 		delete_node( child_node );
 	}
 
-	free( buffer );
+	if ( node->state == NODE_STATE_CHUNK ){
+		yield_mem_pool_buffer( "ChunkManifold", buffer );
+	}else{
+		yield_mem_pool_buffer( "EmptyManifold", buffer );
+	}
+	//free( buffer );
 	node->type = NODE_TYPE_UNIQUE;
 }
 
@@ -259,13 +282,14 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 
 	if ( level < target_level )
 	{
+
 		if ( node->type != NODE_TYPE_MANIFOLD ){
 			subdivide_node( node );
 		}
 
 		if ( node->state == NODE_STATE_CHUNK || node->state == NODE_STATE_AWAITING )
 			empty_node( node );
-
+		
 		for ( size_t i = 0; i < 4; ++i )
 		{
 			Node *child_node = *( ( Node** ) node->data + i );
@@ -277,7 +301,6 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 	}else {
 		if ( node->type == NODE_TYPE_MANIFOLD )
 			remerge_node( node );
-
 		if ( node->state == NODE_STATE_EMPTY )
 			request_node_terrain_generation( node, x_coord, z_coord, level );
 	}
@@ -294,12 +317,15 @@ void initialize_terrain()
 	};
 	g_quadtree_root = empty_node;
 	
-	gen_pool( "Quadtree", sizeof( float ) * 3 * QUAD_COUNT * 6 );
+	gen_mem_pool( "Node", sizeof( Node ) );
+	gen_mem_pool( "EmptyManifold", sizeof( Node* ) * 4 );
+	gen_mem_pool( "ChunkManifold", sizeof( Node* ) * 4 + sizeof( PerspectiveObject* ) );
+	gen_vbo_pool( "Quadtree", sizeof( float ) * 3 * QUAD_COUNT * 6 );
 }
 
 void terminate_terrain()
 {
-	remove_pool( "Quadtree" );
+	remove_vbo_pool( "Quadtree" );
 }
 
 void poll_terrain()

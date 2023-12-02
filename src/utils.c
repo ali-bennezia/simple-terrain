@@ -301,3 +301,19 @@ char* capped_strcpy( char* destination, const char* source, size_t max_len )
 	free( src_cpy );	
 
 }
+
+#if defined (_WIN32) || defined (_WIN64) || defined (__CYGWIN__)
+#include <windows.h>
+void thread_sleep( unsigned int ms )
+{
+	Sleep( ms );
+}
+#elif defined (__linux__) || defined (linux) || defined (__linux)
+#include <unistd.h>
+void thread_sleep( unsigned int ms )
+{
+	sleep( ( float ) ms / 1000.0 );
+}
+#endif
+
+

@@ -48,5 +48,6 @@ Vec3fl vec3fl_divide(Vec3fl dividend, float divider);
 float vec3fl_magnitude(Vec3fl in);
 
 char* capped_strcpy( char* destination, const char* source, size_t max_len );
+void thread_sleep( unsigned int ms );
 
 #endif
