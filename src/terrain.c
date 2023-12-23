@@ -65,15 +65,20 @@ static void convert_coords_level( int from_x, int from_z, size_t from_level, siz
 	*result_z = floor( from_z * quotient );
 }
 
-static Node *search_node( int x_coord, int z_coord, size_t level )
+static Node *search_node( int x_coord, int z_coord, size_t level, boolval *terrain_present )
 {
 	Node *recursive_node = &g_quadtree_root;
 	size_t recursive_level = 0;
+	boolval found_terrain = false;
 	while ( recursive_node )
 	{
 		if ( recursive_level < level )
 		{
-			if ( recursive_node->type != NODE_TYPE_MANIFOLD ) return NULL;
+			if ( recursive_node->state == NODE_STATE_CHUNK ) found_terrain = true;
+			if ( recursive_node->type != NODE_TYPE_MANIFOLD ){
+				*terrain_present = found_terrain;
+				return NULL;
+			}
 			
 			++recursive_level;
 			int child_x_coord, child_z_coord, child_local_x_coord, child_local_z_coord, child_local_index;
@@ -81,6 +86,7 @@ static Node *search_node( int x_coord, int z_coord, size_t level )
 			child_local_x_coord = child_x_coord % 2; child_local_z_coord = child_z_coord % 2; child_local_index = child_local_z_coord * 2 + child_local_x_coord;
 			recursive_node = *( ( Node** ) recursive_node->data + child_local_index );	
 		}else{
+			*terrain_present = found_terrain;
 			if ( recursive_level == 0 ) {
 				if ( x_coord == 0 && z_coord == 0 ) return recursive_node;
 				else return NULL;
@@ -88,6 +94,7 @@ static Node *search_node( int x_coord, int z_coord, size_t level )
 			return recursive_node;
 		}
 	}
+	*terrain_present = found_terrain;
 	return NULL;
 }
 
@@ -131,6 +138,9 @@ static void remerge_node( Node *node );
 static void request_node_terrain_generation( Node* node, int x_coord, int z_coord, size_t level );
 static boolval are_node_immediate_children_covered( Node *node );
 static void establish_node_coverage_chain( Node *node );
+static PerspectiveObject *get_node_object( Node *node );
+static void set_domain_boundary_visibility( boolval domain_root, boolval visibility, Node *node );
+static void set_domain_root_boundary_visibility( boolval visibility, Node *node );
 
 // generates a node
 static Node *generate_node()
@@ -262,11 +272,14 @@ static void remerge_node( Node *node )
 // transforms a node into a chunk node
 void push_node_terrain( int x_coord, int z_coord, size_t level, PerspectiveObject *obj )
 {
-	Node *node = search_node( x_coord, z_coord, level );
+	boolval terrain_present = false;
+	Node *node = search_node( x_coord, z_coord, level, &terrain_present );
 	if ( !node || node->state != NODE_STATE_AWAITING ){
 		deletePerspectiveObject( obj );
 		return;
 	}
+
+	if ( terrain_present ) obj->visible = false;
 
 	if ( node->type == NODE_TYPE_UNIQUE )
 	{
@@ -295,6 +308,35 @@ static boolval are_node_immediate_children_covered( Node *node )
 	return result;
 }
 
+// sets the visiblities of a node's domain's boundary nodes
+static void set_domain_boundary_visibility( boolval domain_root, boolval visibility, Node *node )
+{	
+	if ( node->state == NODE_STATE_CHUNK && domain_root == false )
+	{
+		get_node_object( node )->visible = visibility;	
+	}else{
+		if ( node->type == NODE_TYPE_MANIFOLD )
+		{
+			for ( size_t i = 0; i < 4; ++i )
+			{
+				set_domain_boundary_visibility(
+					false, 
+					visibility, 
+					*( ( Node** ) node->data + i )
+				);
+			}	
+		}	
+	}
+
+
+}
+
+// sets the visiblities of a node's domain's boundary nodes
+static void set_domain_root_boundary_visibility( boolval visibility, Node *node )
+{
+	set_domain_boundary_visibility( true, visibility, node );
+}
+
 // updates a node & its ancestor's covered flag
 static void establish_node_coverage_chain( Node *node )
 {
@@ -310,6 +352,19 @@ static void establish_node_coverage_chain( Node *node )
 		if ( previous_state == iteration->covered ) break;
 		iteration = iteration->parent;
 	}	
+}
+
+// returns a node's PerspectiveObject if it contains one, NULL otherwise
+static PerspectiveObject *get_node_object( Node *node )
+{
+	if ( node->state != NODE_STATE_CHUNK ) return NULL;
+	
+	if ( node->type == NODE_TYPE_UNIQUE ){
+		return node->data;
+	}else{
+		return *( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) );
+	}
+
 }
 
 // sets a node in an awaiting state, and requests terrain generation for it
@@ -333,8 +388,12 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 			return;
 		}
 
-		if ( node->state == NODE_STATE_CHUNK || node->state == NODE_STATE_AWAITING ){
+		if ( ( 
+			node->state == NODE_STATE_CHUNK || node->state == NODE_STATE_AWAITING ) &&
+			are_node_immediate_children_covered( node )
+		 ){
 			empty_node( node );
+			set_domain_root_boundary_visibility( true, node );
 			return;
 		}
 		
@@ -346,7 +405,7 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 			poll_node( child_node, x_coord * 2 + child_x_coord, z_coord * 2 + child_z_coord, level + 1 );
 		}
 	}else {
-		if ( node->type == NODE_TYPE_MANIFOLD ){
+		if ( node->type == NODE_TYPE_MANIFOLD && node->state == NODE_STATE_CHUNK ){
 			remerge_node( node );
 			return;
 		}

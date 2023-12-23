@@ -752,7 +752,6 @@ int main( int argc, char* argv[] )
 		update();
 		render();
 
-		printf( "Frame\n" );
 		poll_generator();
 		poll_terrain();
 
