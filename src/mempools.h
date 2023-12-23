@@ -1,7 +1,7 @@
 #ifndef _MEMPOOLS_H_
 #define _MEMPOOLS_H_
 
-#define MEM_BUFFERS_PER_POOL 500
+#define MEM_BUFFERS_PER_POOL 3000
 
 void init_mem_pools();
 void terminate_mem_pools();

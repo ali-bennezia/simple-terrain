@@ -1,7 +1,7 @@
 #ifndef _VBOPOOLS_H_
 #define _VBOPOOLS_H_
 
-#define VBO_BUFFERS_PER_POOL 500
+#define VBO_BUFFERS_PER_POOL 2000
 
 void init_vbo_pools();
 void terminate_vbo_pools();

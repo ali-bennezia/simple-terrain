@@ -174,12 +174,26 @@ void initialize_workspace()
 	g_workspace = createDynamicArray(sizeof(PerspectiveObject*));
 }
 
+#include "mempools.h"
+
 PerspectiveObject* createPerspectiveObject( )
 {
-	PerspectiveObject *obj = calloc( 1, sizeof( PerspectiveObject ) ); 
+//	PerspectiveObject *obj = calloc( 1, sizeof( PerspectiveObject ) );
+	PerspectiveObject *obj = get_mem_pool_buffer( "PerspectiveObjects" ); 
+
 	obj->useDepth = true;
 	obj->visible = true;
 	obj->material = NULL;
+
+	Vec3fl zero = { 0, 0, 0 };
+	obj->position = zero;
+	obj->eulerAnglesRotation = zero;
+
+	obj->vertices = 0;
+
+	obj->meshInitialized = false;
+	obj->normalsInitialized = false;
+	obj->UVsInitialized = false;
 
 	PerspectiveObject** data = pushDataInDynamicArray( g_workspace, &obj );
 	return *data;
@@ -187,7 +201,9 @@ PerspectiveObject* createPerspectiveObject( )
 
 void deletePerspectiveObject( PerspectiveObject *obj )
 {
-	removeDataFromDynamicArray( g_workspace, obj, true );
+	//removeDataFromDynamicArray( g_workspace, obj, true );
+	yield_mem_pool_buffer( "PerspectiveObjects", obj );
+	removeDataFromDynamicArray( g_workspace, obj, false );
 }
 
 void clear_workspace()

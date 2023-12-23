@@ -4,7 +4,7 @@
 #include <time.h>
 
 static clock_t g_chrono_last_call = 0;
-static const unsigned int threshold = 10;
+static const unsigned int threshold = 0;
 
 void chrono_zero()
 {

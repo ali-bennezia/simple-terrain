@@ -1,6 +1,3 @@
-#define DEBUG 1
-#define _DEBUG 1
-
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -348,7 +345,8 @@ void initialize_default_materials()
 
 	//terrain material
 	copyVec3fAsUniform(&g_defaultTerrainMaterialLit, "color", white);
-	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_rock2Texture, 0); //g_grassTexture
+	//copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_rock2Texture, 0); //g_grassTexture
+	copyTextureAsUniform(&g_defaultTerrainMaterialLit, "albedoTexture", g_grassTexture, 0);
 	copyFloatAsUniform(&g_defaultTerrainMaterialLit, "textureTiles", 4);
 
 	//sky quad material
@@ -495,6 +493,8 @@ int main( int argc, char* argv[] )
 	setSunDirection(-1, 1, 0);
 
 	updateViewMatrix();
+
+	gen_mem_pool( "PerspectiveObjects", sizeof( PerspectiveObject ) ); // debug	
 
 	PerspectiveObject* skyQuad = createPerspectiveObject();
 
@@ -741,6 +741,7 @@ int main( int argc, char* argv[] )
 
 	cube->position.z = 5;
 
+
 	double previousTime = glfwGetTime();
 
 	while ( !(glfwWindowShouldClose(g_window) || g_exit ))
@@ -751,6 +752,7 @@ int main( int argc, char* argv[] )
 		update();
 		render();
 
+		printf( "Frame\n" );
 		poll_generator();
 		poll_terrain();
 

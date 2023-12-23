@@ -13,6 +13,7 @@
 #include "noises.h"
 #include "mempools.h"
 #include "vbopools.h"
+#include "boolvals.h"
 
 #include "debug.h"
 
@@ -41,7 +42,9 @@ enum NodeState {
 typedef struct Node {
 	enum NodeType type;
 	enum NodeState state;
-	void *data;	
+	void *data;
+	boolval covered;
+	struct Node *parent;	
 } Node;
 
 /// quadtree parameters
@@ -126,6 +129,8 @@ static void delete_node( Node *node );
 static void subdivide_node( Node *node );
 static void remerge_node( Node *node );
 static void request_node_terrain_generation( Node* node, int x_coord, int z_coord, size_t level );
+static boolval are_node_immediate_children_covered( Node *node );
+static void establish_node_coverage_chain( Node *node );
 
 // generates a node
 static Node *generate_node()
@@ -135,6 +140,8 @@ static Node *generate_node()
 	node->type = NODE_TYPE_UNIQUE;
 	node->state = NODE_STATE_EMPTY;
 	node->data = NULL;
+	node->covered = false;
+	node->parent = NULL;
 	return node;	
 }
 
@@ -167,6 +174,8 @@ static void empty_node( Node *node )
 
 	deletePerspectiveObject( obj );
 	node->state = NODE_STATE_EMPTY;
+
+	establish_node_coverage_chain( node );
 }
 
 // deletes a node, along with its children
@@ -178,7 +187,9 @@ static void delete_node( Node *node )
 		for ( size_t i = 0; i < 4; ++i )
 		{
 			Node *child_node = *( ( Node** ) node->data + i );
-			delete_node( child_node );	
+			child_node->parent = NULL;
+			delete_node( child_node );
+			*( ( Node** ) node->data + i ) = NULL;
 		}
 		//free( node->data );
 		if ( node->state == NODE_STATE_CHUNK ){
@@ -210,6 +221,7 @@ static void subdivide_node( Node *node )
 	for ( size_t i = 0; i < 4; ++i )
 	{
 		Node *child_node = generate_node();
+		child_node->parent = node;
 		*( ( Node** ) node->data + i ) = child_node;
 	}
 
@@ -234,6 +246,7 @@ static void remerge_node( Node *node )
 	for ( size_t i = 0; i < 4; ++i )
 	{
 		Node *child_node = *( ( Node** ) buffer + i );
+		child_node->parent = NULL;
 		delete_node( child_node );
 	}
 
@@ -264,6 +277,39 @@ void push_node_terrain( int x_coord, int z_coord, size_t level, PerspectiveObjec
 	}
 	
 	node->state = NODE_STATE_CHUNK;
+
+	establish_node_coverage_chain( node );
+}
+
+// returns true if all of a node's immediate children have the covered flag set to true, false otherwise
+static boolval are_node_immediate_children_covered( Node *node )
+{
+	if ( node->type != NODE_TYPE_MANIFOLD ) return false;
+	Node **children = node->data;
+	boolval result =  (
+		(*( children + 0 ))->covered && 
+		(*( children + 1 ))->covered && 
+		(*( children + 2 ))->covered && 
+		(*( children + 3 ))->covered 
+	);
+	return result;
+}
+
+// updates a node & its ancestor's covered flag
+static void establish_node_coverage_chain( Node *node )
+{
+	node->covered = ( node->state == NODE_STATE_CHUNK );
+	Node *iteration = node->parent;
+	size_t i = 0;
+	while ( iteration != NULL )
+	{
+		++i;
+		if ( iteration->state == NODE_STATE_CHUNK ) break; // break when attaining another domain, to avoid affecting it
+		boolval previous_state = iteration->covered;
+		iteration->covered = are_node_immediate_children_covered( iteration );
+		if ( previous_state == iteration->covered ) break;
+		iteration = iteration->parent;
+	}	
 }
 
 // sets a node in an awaiting state, and requests terrain generation for it
@@ -282,13 +328,15 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 
 	if ( level < target_level )
 	{
-
 		if ( node->type != NODE_TYPE_MANIFOLD ){
 			subdivide_node( node );
+			return;
 		}
 
-		if ( node->state == NODE_STATE_CHUNK || node->state == NODE_STATE_AWAITING )
+		if ( node->state == NODE_STATE_CHUNK || node->state == NODE_STATE_AWAITING ){
 			empty_node( node );
+			return;
+		}
 		
 		for ( size_t i = 0; i < 4; ++i )
 		{
@@ -297,12 +345,15 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 			int child_z_coord = ( i - child_x_coord ) / 2;
 			poll_node( child_node, x_coord * 2 + child_x_coord, z_coord * 2 + child_z_coord, level + 1 );
 		}
-
 	}else {
-		if ( node->type == NODE_TYPE_MANIFOLD )
+		if ( node->type == NODE_TYPE_MANIFOLD ){
 			remerge_node( node );
-		if ( node->state == NODE_STATE_EMPTY )
+			return;
+		}
+		if ( node->state == NODE_STATE_EMPTY ){
 			request_node_terrain_generation( node, x_coord, z_coord, level );
+			return;
+		}
 	}
 
 }
@@ -313,6 +364,8 @@ void initialize_terrain()
 	Node empty_node = {
 		NODE_TYPE_UNIQUE,
 		NODE_STATE_EMPTY,
+		NULL,
+		false,
 		NULL
 	};
 	g_quadtree_root = empty_node;
