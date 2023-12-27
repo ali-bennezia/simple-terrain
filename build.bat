@@ -1,7 +1,7 @@
 set "debug=true"
 
 set "depflag=-lpthread -lopengl32 -lglu32 -lgdi32 -luser32 -lkernel32"
-set "debugflag="
+set "debugflag=-g"
 
 if %debug% == false (
 	set "debugflag=-mwindows"
@@ -11,8 +11,8 @@ if not exist bin (
 	mkdir bin
 )
 
-gcc -o ./bin/renderer.exe ./src/main.c ./src/utils.c ./src/materials.c ./src/objects.c ./src/factory.c ./src/noises.c ./src/generator.c ./src/renderer.c ./src/terrain.c ^
-./src/vbopools.c ./src/mempools.c ./src/debug.c ^
+gcc -o ./bin/renderer.exe ./src/main.c ./src/utils.c ./src/materials.c ./src/objects.c ./src/factory.c ./src/noises.c ./src/generator.c ./src/renderer.c ./src/quadtree.c ^
+./src/vbopools.c ./src/mempools.c ./src/standard.c ./src/debug.c ^
 ./libs/perlin/perlin.c ^
 -lglew32 -lglfw3 %debugflag%  %depflag% ^
 -I".\libs\stb_image" ^

@@ -5,7 +5,7 @@
 #include "noises.h"
 #include "objects.h"
 #include "materials.h"
-#include "terrain.h"
+#include "quadtree.h"
 #include "mempools.h"
 #include "vbopools.h"
 #include "debug.h"
@@ -19,7 +19,7 @@
 #include <string.h>
 
 #define MAX_THREADS 10
-#define MAX_PENDING_REQUESTS 100
+#define MAX_PENDING_REQUESTS 500
 
 static void create_threads();
 
@@ -53,12 +53,14 @@ struct generation_request {
 	boolval pending, done, fetched;
 };
 struct generation_request pending_requests[MAX_PENDING_REQUESTS];
+
 boolval pending_fetches = false;
 pthread_mutex_t pending_requests_mtx;
 static boolval g_threads_running = false;
 
 void initialize_generator()
 {
+
 	pthread_mutex_init( &threads_mtx, NULL );
 	pthread_mutex_init( &pending_requests_mtx, NULL );
 
@@ -97,10 +99,10 @@ void poll_generator()
 
 			pending_requests[i].fetched = true;
 
-			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
+		/*	glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
 			glUnmapBuffer( GL_ARRAY_BUFFER );
 			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].normals_vbo_data.buffer_id );
-			glUnmapBuffer( GL_ARRAY_BUFFER );
+			glUnmapBuffer( GL_ARRAY_BUFFER );*/
 
 			float requested_terrain_size = g_quadtree_root_size / pow( 2, pending_requests[i].level );
 			float x_pos = pending_requests[i].x_coord * requested_terrain_size, z_pos = pending_requests[i].z_coord * requested_terrain_size;
@@ -110,6 +112,13 @@ void poll_generator()
 			requested_terrain->position.x = x_pos;
 			requested_terrain->position.y = 0;
 			requested_terrain->position.z = z_pos;
+
+			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
+			glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof( float ) * pending_requests[i].verticesCount * 3, pending_requests[i].vertices );
+
+			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].normals_vbo_data.buffer_id );
+			glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof( float ) * pending_requests[i].normalsCount * 3, pending_requests[i].normals );
+
 
 			setObjectVBO(
 				requested_terrain, 
@@ -128,7 +137,7 @@ void poll_generator()
 			requested_terrain->material = &g_defaultTerrainMaterialLit;
 			requested_terrain->vertices = pending_requests[i].verticesCount;
 
-			push_node_terrain( pending_requests[i].x_coord, pending_requests[i].z_coord, pending_requests[i].level, requested_terrain );
+			push_quadtree_chunk( pending_requests[i].x_coord, pending_requests[i].z_coord, pending_requests[i].level, requested_terrain );
 
 			pthread_mutex_unlock( &pending_requests_mtx );
 			return;
@@ -154,10 +163,8 @@ void terminate_generator()
 int find_request_index( boolval pending_predicate, boolval done_predicate, boolval fetched_predicate )
 {
 	for ( size_t i = 0; i < MAX_PENDING_REQUESTS; ++i ){
-		
-		if ( pending_requests[i].pending == pending_predicate && pending_requests[i].done == done_predicate && pending_requests[i].fetched == fetched_predicate )
+		if ( pending_requests[ i ].pending == pending_predicate && pending_requests[ i ].done == done_predicate && pending_requests[ i ].fetched == fetched_predicate )
 			return i;
-
 	}
 
 	return -1;
@@ -165,10 +172,7 @@ int find_request_index( boolval pending_predicate, boolval done_predicate, boolv
 
 void *thread_job( void *data )
 {
-
 	pthread_t self = pthread_self();
-
-
 
 	boolval running = true;
 
@@ -219,8 +223,8 @@ void *thread_job( void *data )
 		request.verticesCount = verticesCount;
 		request.normalsCount = normalsCount;
 
-		memcpy( request.vertices_vbo_data.buffer_data, vertices, verticesCount * sizeof( float ) * 3 );
-		memcpy( request.normals_vbo_data.buffer_data, normals, normalsCount * sizeof( float ) * 3 );
+		//memcpy( request.vertices_vbo_data.buffer_data, vertices, verticesCount * sizeof( float ) * 3 );
+		//memcpy( request.normals_vbo_data.buffer_data, normals, normalsCount * sizeof( float ) * 3 );
 
 		request.pending = false;
 		request.done = true;
@@ -255,7 +259,7 @@ static void create_threads()
 	pthread_mutex_unlock( &threads_mtx );
 }
 
-void request_generation( int x_coord, int z_coord, size_t level, size_t tessellations )
+boolval request_generation( int x_coord, int z_coord, size_t level, size_t tessellations )
 {
 	float terrain_size = g_quadtree_root_size / pow( 2, level );
 
@@ -278,13 +282,13 @@ void request_generation( int x_coord, int z_coord, size_t level, size_t tessella
 
 			// vertices buffer
 			pending_requests[i].vertices_vbo_data.buffer_id = get_vbo_pool_buffer( "Quadtree" );
-			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
-			pending_requests[i].vertices_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
+			//glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].vertices_vbo_data.buffer_id );
+			//pending_requests[i].vertices_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
 
 			// normals buffer
 			pending_requests[i].normals_vbo_data.buffer_id = get_vbo_pool_buffer( "Quadtree" );
-			glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].normals_vbo_data.buffer_id );
-			pending_requests[i].normals_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
+			//glBindBuffer( GL_ARRAY_BUFFER, pending_requests[i].normals_vbo_data.buffer_id );
+			//pending_requests[i].normals_vbo_data.buffer_data = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
 
 			pending_requests[i].pending = true;	
 			pending_requests[i].done = false;
@@ -296,6 +300,8 @@ void request_generation( int x_coord, int z_coord, size_t level, size_t tessella
 		}
 	}
 
-	pthread_mutex_unlock( &pending_requests_mtx );	
+	pthread_mutex_unlock( &pending_requests_mtx );
+
+	return !found;	
 }
 

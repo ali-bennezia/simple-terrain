@@ -1,4 +1,4 @@
-#include "terrain.h"
+#include "quadtree.h"
 
 #include <string.h>
 
@@ -17,9 +17,7 @@
 
 #include "debug.h"
 
-#define MAX_TRANSFERTS 80
 const int QUAD_COUNT = 1 * pow( 2, TESSELLATIONS*2 );
-
 
 /// externs
 
@@ -270,7 +268,7 @@ static void remerge_node( Node *node )
 }
 
 // transforms a node into a chunk node
-void push_node_terrain( int x_coord, int z_coord, size_t level, PerspectiveObject *obj )
+void push_quadtree_chunk( int x_coord, int z_coord, size_t level, PerspectiveObject *obj )
 {
 	boolval terrain_present = false;
 	Node *node = search_node( x_coord, z_coord, level, &terrain_present );
@@ -287,6 +285,8 @@ void push_node_terrain( int x_coord, int z_coord, size_t level, PerspectiveObjec
 	}else{
 		node->data = realloc( node->data, sizeof( Node* ) * 4 + sizeof( PerspectiveObject* ) );
 		*( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) ) = obj;
+
+		set_domain_root_boundary_visibility( false, node );
 	}
 	
 	node->state = NODE_STATE_CHUNK;
@@ -371,8 +371,10 @@ static PerspectiveObject *get_node_object( Node *node )
 static void request_node_terrain_generation( Node* node, int x_coord, int z_coord, size_t level )
 {
 	if ( node->state != NODE_STATE_EMPTY ) return;
-	node->state = NODE_STATE_AWAITING;	
-	request_generation( x_coord, z_coord, level, TESSELLATIONS );
+	boolval result = request_generation( x_coord, z_coord, level, TESSELLATIONS );
+	if ( !result ){
+		node->state = NODE_STATE_AWAITING;	
+	}
 }
 
 /// terrain control
@@ -417,8 +419,7 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 
 }
 
-
-void initialize_terrain()
+void initialize_quadtree()
 {
 	Node empty_node = {
 		NODE_TYPE_UNIQUE,
@@ -432,15 +433,20 @@ void initialize_terrain()
 	gen_mem_pool( "Node", sizeof( Node ) );
 	gen_mem_pool( "EmptyManifold", sizeof( Node* ) * 4 );
 	gen_mem_pool( "ChunkManifold", sizeof( Node* ) * 4 + sizeof( PerspectiveObject* ) );
+
 	gen_vbo_pool( "Quadtree", sizeof( float ) * 3 * QUAD_COUNT * 6 );
 }
 
-void terminate_terrain()
+void terminate_quadtree()
 {
 	remove_vbo_pool( "Quadtree" );
+
+	remove_mem_pool( "ChunkManifold" );
+	remove_mem_pool( "EmptyManifold" );
+	remove_mem_pool( "Node" );
 }
 
-void poll_terrain()
+void poll_quadtree()
 {
 	poll_node( &g_quadtree_root, 0, 0, 0 );
 }

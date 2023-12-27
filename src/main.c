@@ -15,7 +15,7 @@
 #include "objects.h"
 #include "factory.h"
 #include "noises.h"
-#include "terrain.h"
+#include "quadtree.h"
 #include "generator.h"
 #include "renderer.h"
 #include "mempools.h"
@@ -219,7 +219,7 @@ void set_camera_FOV(float FOV)
 
 void cleanup()
 {
-	terminate_terrain();
+	terminate_quadtree();
 	terminate_generator();
 
 	terminate_vbo_pools();
@@ -473,7 +473,7 @@ int main( int argc, char* argv[] )
 	initialize_workspace();
 
 	initialize_generator();
-	initialize_terrain();
+	initialize_quadtree();
 
 
 	set_camera_move_speed(50);
@@ -753,7 +753,7 @@ int main( int argc, char* argv[] )
 		render();
 
 		poll_generator();
-		poll_terrain();
+		poll_quadtree();
 
 		glfwSwapBuffers(g_window);
 		glfwPollEvents();
