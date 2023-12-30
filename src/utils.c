@@ -51,50 +51,41 @@ void* pushDataInDynamicArray(DynamicArray* arr, void* data)
 	return ( void* ) destination;
 }
 
-int removeDataAtIndexFromDynamicArray(DynamicArray* arr, size_t index, boolval freeUp)
+int removeDataAtIndexFromDynamicArray(DynamicArray* arr, size_t index, boolval free_up)
 {
-	if ( index > arr->usage - 1 ) return 1;
+	if ( index > ( arr->usage - 1 ) ) return 1;
 
-	--(arr->usage);
-	if (freeUp) free(*((void**)( (char*)arr->data + index*arr->dataSizeInBytes)));
+	size_t move_count = arr->usage - index - 1;
 
-	void *moved_elems_source = (void*) ( (char*)arr->data + (index + 1)*arr->dataSizeInBytes );
-	void *moved_elems_dest = (void*) ( (char*)arr->data + index*arr->dataSizeInBytes );
-	size_t moved_elems_count = (arr->usage+1)-(index+1);
-	void *temp_move_buff = malloc( moved_elems_count * arr->dataSizeInBytes );
+	void *move_destination = ( void* ) ( ( char* ) arr->data + index * arr->dataSizeInBytes );
+	void *move_source = ( void* ) ( ( char* ) move_destination + arr->dataSizeInBytes );
 
-	memcpy( temp_move_buff, moved_elems_source, moved_elems_count * arr->dataSizeInBytes );
-	memcpy( moved_elems_dest, temp_move_buff, moved_elems_count * arr->dataSizeInBytes );
-	free( temp_move_buff );
+	if ( free_up ){
+		free( *( ( void** ) move_destination ) );
+	}
 
-	if (arr->size > 10 && arr->usage < arr->size/2)
-	{
+	memmove( move_destination, move_source, move_count * arr->dataSizeInBytes );
+	--arr->usage;
+
+	if ( arr->size <= 10 && arr->usage <= arr->size / 2 ){
 		arr->size /= 2;
-		arr->data = realloc(arr->data, arr->size*arr->dataSizeInBytes);
+		arr->data = realloc( arr->data, arr->size * arr->dataSizeInBytes );
 	}
 
 	return 0;
 }
 
-int removeDataFromDynamicArray(DynamicArray* arr, void* data, boolval freeUp)
+int removeDataFromDynamicArray(DynamicArray* arr, void* data, boolval free_up)
 {
-	size_t target_index = 0;
-	boolval found = false;
+	for ( size_t i = 0; i < arr->usage; ++i )
+	{
+		void *ptr = ( void* ) ( ( char* ) arr->data + i * arr->dataSizeInBytes );
 
-	for ( ; target_index < arr->usage; ++target_index ){
-
-		void **arr_pointer = ( void** ) ( ( char* ) arr->data + target_index*arr->dataSizeInBytes );
-
-		if ( data == *arr_pointer ) 
-		{
-			found = true;
-			break;
+		if ( memcmp( ptr, data, arr->dataSizeInBytes ) == 0 ){
+			return removeDataAtIndexFromDynamicArray( arr, i, free_up );
 		}
-
 	}
-
-	if ( !found ) return 1;
-	return removeDataAtIndexFromDynamicArray(arr, target_index, freeUp);
+	return 1;
 }
 
 char* getFile(const char* path, int* length_out)

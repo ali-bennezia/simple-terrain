@@ -9,6 +9,7 @@
 
 #include <cglm/cglm.h>
 
+
 #include "boolvals.h"
 #include "utils.h"
 #include "materials.h"
@@ -515,7 +516,6 @@ int main( int argc, char* argv[] )
 	skyQuad->useDepth = false;
 
 
-//	request_generation( 0, 0, 100, 4 );
 
 	/*
 
@@ -740,7 +740,6 @@ int main( int argc, char* argv[] )
 	cube->vertices = sizeof(vertices) / (sizeof(float)*3);
 
 	cube->position.z = 5;
-
 
 	double previousTime = glfwGetTime();
 

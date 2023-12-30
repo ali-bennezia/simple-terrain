@@ -4,8 +4,6 @@
 #include "utils.h"
 #include "boolvals.h"
 
-#define TESSELLATIONS 2
-
 struct PerspectiveObject;
 typedef struct PerspectiveObject PerspectiveObject;
 

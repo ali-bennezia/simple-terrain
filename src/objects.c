@@ -201,9 +201,8 @@ PerspectiveObject* createPerspectiveObject( )
 
 void deletePerspectiveObject( PerspectiveObject *obj )
 {
-	//removeDataFromDynamicArray( g_workspace, obj, true );
 	yield_mem_pool_buffer( "PerspectiveObjects", obj );
-	removeDataFromDynamicArray( g_workspace, obj, false );
+	removeDataFromDynamicArray( g_workspace, &obj, false );
 }
 
 void clear_workspace()
@@ -213,7 +212,7 @@ void clear_workspace()
 
 void render_workspace()
 {
-	PerspectiveObject** iterator = (PerspectiveObject**)g_workspace->data;
+	PerspectiveObject** iterator = ( PerspectiveObject** ) g_workspace->data;
 	for (size_t i = 0; i < g_workspace->usage; ++i){
 		if ( (*iterator)->visible ) drawPerspectiveObject( *iterator );
 		++iterator;	

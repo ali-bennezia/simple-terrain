@@ -81,7 +81,7 @@ int generateTessellatedQuad(
 )
 {
 	const size_t sideQuadsAmount = pow(2, tessellations);
-	const float smallestWidth = (float)size / sideQuadsAmount;
+	const float smallestWidth = size / ( float ) sideQuadsAmount;
 	const size_t totalQuadsAmount = pow(sideQuadsAmount, 2);
 
 	const size_t vertices = totalQuadsAmount*6;

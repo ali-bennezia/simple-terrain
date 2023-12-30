@@ -8,6 +8,7 @@
 #include "quadtree.h"
 #include "mempools.h"
 #include "vbopools.h"
+#include "config.h"
 #include "debug.h"
 
 #include <stdlib.h>
@@ -17,9 +18,6 @@
 #include <GLFW/glfw3.h>
 
 #include <string.h>
-
-#define MAX_THREADS 10
-#define MAX_PENDING_REQUESTS 500
 
 static void create_threads();
 

@@ -14,6 +14,7 @@
 #include "mempools.h"
 #include "vbopools.h"
 #include "boolvals.h"
+#include "config.h"
 
 #include "debug.h"
 
@@ -92,6 +93,7 @@ static Node *search_node( int x_coord, int z_coord, size_t level, boolval *terra
 			return recursive_node;
 		}
 	}
+
 	*terrain_present = found_terrain;
 	return NULL;
 }
@@ -135,6 +137,7 @@ static void subdivide_node( Node *node );
 static void remerge_node( Node *node );
 static void request_node_terrain_generation( Node* node, int x_coord, int z_coord, size_t level );
 static boolval are_node_immediate_children_covered( Node *node );
+static boolval is_border_node( Node *node );
 static void establish_node_coverage_chain( Node *node );
 static PerspectiveObject *get_node_object( Node *node );
 static void set_domain_boundary_visibility( boolval domain_root, boolval visibility, Node *node );
@@ -277,7 +280,7 @@ void push_quadtree_chunk( int x_coord, int z_coord, size_t level, PerspectiveObj
 		return;
 	}
 
-	if ( terrain_present ) obj->visible = false;
+	obj->visible = !terrain_present;
 
 	if ( node->type == NODE_TYPE_UNIQUE )
 	{
@@ -285,13 +288,15 @@ void push_quadtree_chunk( int x_coord, int z_coord, size_t level, PerspectiveObj
 	}else{
 		node->data = realloc( node->data, sizeof( Node* ) * 4 + sizeof( PerspectiveObject* ) );
 		*( ( PerspectiveObject** ) ( ( Node** ) node->data + 4 ) ) = obj;
-
-		set_domain_root_boundary_visibility( false, node );
 	}
 	
 	node->state = NODE_STATE_CHUNK;
 
 	establish_node_coverage_chain( node );
+
+	if ( node->type == NODE_TYPE_MANIFOLD ){
+		set_domain_root_boundary_visibility( false, node );
+	}
 }
 
 // returns true if all of a node's immediate children have the covered flag set to true, false otherwise
@@ -306,6 +311,11 @@ static boolval are_node_immediate_children_covered( Node *node )
 		(*( children + 3 ))->covered 
 	);
 	return result;
+}
+
+static boolval is_border_node( Node *node )
+{
+	return ( node->type == NODE_TYPE_UNIQUE || node->state == NODE_STATE_CHUNK );
 }
 
 // sets the visiblities of a node's domain's boundary nodes
@@ -340,7 +350,12 @@ static void set_domain_root_boundary_visibility( boolval visibility, Node *node 
 // updates a node & its ancestor's covered flag
 static void establish_node_coverage_chain( Node *node )
 {
-	node->covered = ( node->state == NODE_STATE_CHUNK );
+	if ( is_border_node( node ) ) {
+		node->covered = ( node->state == NODE_STATE_CHUNK );
+	}else{
+		node->covered = are_node_immediate_children_covered( node );
+	}
+
 	Node *iteration = node->parent;
 	size_t i = 0;
 	while ( iteration != NULL )
@@ -379,7 +394,7 @@ static void request_node_terrain_generation( Node* node, int x_coord, int z_coor
 
 /// terrain control
 
-static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
+static void poll_node( Node *node, int x_coord, int z_coord, size_t level, boolval top_covered )
 {
 	size_t target_level = get_quad_level( x_coord, z_coord, level );
 
@@ -390,12 +405,12 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 			return;
 		}
 
-		if ( ( 
-			node->state == NODE_STATE_CHUNK || node->state == NODE_STATE_AWAITING ) &&
+		if ( 
+			node->state == NODE_STATE_CHUNK  &&
 			are_node_immediate_children_covered( node )
 		 ){
 			empty_node( node );
-			set_domain_root_boundary_visibility( true, node );
+			set_domain_root_boundary_visibility( !top_covered, node );
 			return;
 		}
 		
@@ -404,9 +419,9 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 			Node *child_node = *( ( Node** ) node->data + i );
 			int child_x_coord = i % 2;
 			int child_z_coord = ( i - child_x_coord ) / 2;
-			poll_node( child_node, x_coord * 2 + child_x_coord, z_coord * 2 + child_z_coord, level + 1 );
+			poll_node( child_node, x_coord * 2 + child_x_coord, z_coord * 2 + child_z_coord, level + 1, top_covered || node->state == NODE_STATE_CHUNK );
 		}
-	}else {
+	}else if ( level == target_level ) {
 		if ( node->type == NODE_TYPE_MANIFOLD && node->state == NODE_STATE_CHUNK ){
 			remerge_node( node );
 			return;
@@ -416,7 +431,6 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level )
 			return;
 		}
 	}
-
 }
 
 void initialize_quadtree()
@@ -448,7 +462,7 @@ void terminate_quadtree()
 
 void poll_quadtree()
 {
-	poll_node( &g_quadtree_root, 0, 0, 0 );
+	poll_node( &g_quadtree_root, 0, 0, 0, false );
 }
 
 
