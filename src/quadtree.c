@@ -43,14 +43,16 @@ typedef struct Node {
 	enum NodeState state;
 	void *data;
 	boolval covered;
-	struct Node *parent;	
+	struct Node *parent;
+	struct Node *neighbors[ 4 ]; // N, E, S, W, +x -> eastwards, -z -> northwards
+	float *border_vertices_cache, *border_normals_cache;	
 } Node;
 
 /// quadtree parameters
 
 Node g_quadtree_root;
 float g_quadtree_root_size = 10000;
-float g_quadtree_min_distance = 15000;
+float g_quadtree_min_distance = 20000;
 size_t g_quadtree_max_level = 7;
 
 
@@ -66,7 +68,9 @@ static void convert_coords_level( int from_x, int from_z, size_t from_level, siz
 
 static Node *search_node( int x_coord, int z_coord, size_t level, boolval *terrain_present )
 {
-	Node *recursive_node = &g_quadtree_root;
+	int root_x_coord, root_z_coord;
+	convert_coords_level( x_coord, z_coord, level, 0, &root_x_coord, &root_z_coord );	
+	Node *recursive_node = root_x_coord == 0 && root_z_coord == 0 ? &g_quadtree_root : NULL;
 	size_t recursive_level = 0;
 	boolval found_terrain = false;
 	while ( recursive_node )
@@ -75,7 +79,7 @@ static Node *search_node( int x_coord, int z_coord, size_t level, boolval *terra
 		{
 			if ( recursive_node->state == NODE_STATE_CHUNK ) found_terrain = true;
 			if ( recursive_node->type != NODE_TYPE_MANIFOLD ){
-				*terrain_present = found_terrain;
+				if ( terrain_present != NULL ) *terrain_present = found_terrain;
 				return NULL;
 			}
 			
@@ -85,7 +89,7 @@ static Node *search_node( int x_coord, int z_coord, size_t level, boolval *terra
 			child_local_x_coord = child_x_coord % 2; child_local_z_coord = child_z_coord % 2; child_local_index = child_local_z_coord * 2 + child_local_x_coord;
 			recursive_node = *( ( Node** ) recursive_node->data + child_local_index );	
 		}else{
-			*terrain_present = found_terrain;
+			if ( terrain_present != NULL ) *terrain_present = found_terrain;
 			if ( recursive_level == 0 ) {
 				if ( x_coord == 0 && z_coord == 0 ) return recursive_node;
 				else return NULL;
@@ -94,7 +98,7 @@ static Node *search_node( int x_coord, int z_coord, size_t level, boolval *terra
 		}
 	}
 
-	*terrain_present = found_terrain;
+	if ( terrain_present != NULL ) *terrain_present = found_terrain;
 	return NULL;
 }
 
@@ -153,6 +157,8 @@ static Node *generate_node()
 	node->data = NULL;
 	node->covered = false;
 	node->parent = NULL;
+	memset( &node->neighbors, 0, sizeof( Node* ) * 4 );
+
 	return node;	
 }
 
@@ -192,6 +198,11 @@ static void empty_node( Node *node )
 // deletes a node, along with its children
 static void delete_node( Node *node )
 {
+	if ( node->neighbors[ 0 ] != NULL && node->neighbors[ 0 ]->neighbors[ 2 ] != NULL ) node->neighbors[ 0 ]->neighbors[ 2 ] = NULL;
+	if ( node->neighbors[ 1 ] != NULL && node->neighbors[ 1 ]->neighbors[ 3 ] != NULL ) node->neighbors[ 1 ]->neighbors[ 3 ] = NULL;
+	if ( node->neighbors[ 2 ] != NULL && node->neighbors[ 2 ]->neighbors[ 0 ] != NULL ) node->neighbors[ 2 ]->neighbors[ 0 ] = NULL;
+	if ( node->neighbors[ 3 ] != NULL && node->neighbors[ 3 ]->neighbors[ 1 ] != NULL ) node->neighbors[ 3 ]->neighbors[ 1 ] = NULL;
+
 	empty_node( node );
 	if ( node->type == NODE_TYPE_MANIFOLD )
 	{
@@ -394,15 +405,16 @@ static void request_node_terrain_generation( Node* node, int x_coord, int z_coor
 
 /// terrain control
 
-static void poll_node( Node *node, int x_coord, int z_coord, size_t level, boolval top_covered )
+static void poll_node( Node *node, int x_coord, int z_coord, size_t level, boolval top_covered, Node *neighbors[ 4 ] )
 {
 	size_t target_level = get_quad_level( x_coord, z_coord, level );
+
+	memcpy( node->neighbors, neighbors, sizeof( Node* ) * 4 );
 
 	if ( level < target_level )
 	{
 		if ( node->type != NODE_TYPE_MANIFOLD ){
 			subdivide_node( node );
-			return;
 		}
 
 		if ( 
@@ -411,7 +423,6 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level, boolv
 		 ){
 			empty_node( node );
 			set_domain_root_boundary_visibility( !top_covered, node );
-			return;
 		}
 		
 		for ( size_t i = 0; i < 4; ++i )
@@ -419,16 +430,52 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level, boolv
 			Node *child_node = *( ( Node** ) node->data + i );
 			int child_x_coord = i % 2;
 			int child_z_coord = ( i - child_x_coord ) / 2;
-			poll_node( child_node, x_coord * 2 + child_x_coord, z_coord * 2 + child_z_coord, level + 1, top_covered || node->state == NODE_STATE_CHUNK );
+			Node *child_neighbors[ 4 ] = {
+				child_z_coord == 0 ? 
+					( 
+						neighbors[ 0 ] && neighbors[ 0 ]->type == NODE_TYPE_MANIFOLD 
+						? *( ( Node** ) neighbors[ 0 ]->data + 2 + child_x_coord ) 
+						: NULL 
+					) 
+				: *( ( Node** ) node->data + child_x_coord ),
+				child_x_coord == 1 ? 
+					( 
+						neighbors[ 1 ] && neighbors[ 1 ]->type == NODE_TYPE_MANIFOLD 
+						? *( ( Node** ) neighbors[ 1 ]->data + 2 * child_z_coord ) 
+						: NULL 
+					) 
+				: *( ( Node** ) node->data + i + 1 ),
+				child_z_coord == 1 ? 
+					( 
+						neighbors[ 2 ] && neighbors[ 2 ]->type == NODE_TYPE_MANIFOLD 
+						? *( ( Node** ) neighbors[ 2 ]->data + child_x_coord ) 
+						: NULL 
+					) 
+				: *( ( Node** ) node->data + 2 + child_x_coord ),
+				child_x_coord == 0 ? 
+					( 
+						neighbors[ 3 ] && neighbors[ 3 ]->type == NODE_TYPE_MANIFOLD 
+						? *( ( Node** ) neighbors[ 3 ]->data + 2 * child_z_coord + 1 ) 
+						: NULL 
+					) 
+				: *( ( Node** ) node->data + i - 1 )
+			};
+
+			poll_node( 
+				child_node, 
+				x_coord * 2 + child_x_coord, 
+				z_coord * 2 + child_z_coord, 
+				level + 1, 
+				top_covered || node->state == NODE_STATE_CHUNK,
+				child_neighbors
+			);
 		}
 	}else if ( level == target_level ) {
 		if ( node->type == NODE_TYPE_MANIFOLD && node->state == NODE_STATE_CHUNK ){
 			remerge_node( node );
-			return;
 		}
 		if ( node->state == NODE_STATE_EMPTY ){
 			request_node_terrain_generation( node, x_coord, z_coord, level );
-			return;
 		}
 	}
 }
@@ -440,7 +487,8 @@ void initialize_quadtree()
 		NODE_STATE_EMPTY,
 		NULL,
 		false,
-		NULL
+		NULL,
+		{ 0 }
 	};
 	g_quadtree_root = empty_node;
 	
@@ -460,9 +508,11 @@ void terminate_quadtree()
 	remove_mem_pool( "Node" );
 }
 
+static const Node *g_empty_neighbors[ 4 ] = { NULL };
+
 void poll_quadtree()
 {
-	poll_node( &g_quadtree_root, 0, 0, 0, false );
+	poll_node( &g_quadtree_root, 0, 0, 0, false, ( Node ** ) g_empty_neighbors );
 }
 
 

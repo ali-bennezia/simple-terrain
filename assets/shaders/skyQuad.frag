@@ -36,11 +36,11 @@ vec3 render_sky( vec3 fragColor, vec3 unitSphereHitpoint )
 	float latitude = coords.latitude;
 	float longitude = coords.longitude;
 
-	//vec3 topBottomColor = vec3(0.509, 0.787, 0.901);
-	//vec3 horizonColor = vec3(80.0/100.0, 90.0/100.0, 0.95);
+	vec3 topBottomColor = vec3(0.509, 0.787, 0.901);
+	vec3 horizonColor = vec3(80.0/100.0, 90.0/100.0, 0.95);
 
-	vec3 topBottomColor = vec3( 0.745, 0.631, 0.949 );
-	vec3 horizonColor = vec3( 0.98, 0.816, 0.98 );
+	//vec3 topBottomColor = vec3( 0.745, 0.631, 0.949 );
+	//vec3 horizonColor = vec3( 0.98, 0.816, 0.98 );
 
 	float verticalQuotient = abs( latitude ) / ( PI / 2.0 );
 
