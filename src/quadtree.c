@@ -134,7 +134,7 @@ static size_t get_quad_level( int x_coord, int z_coord, size_t level )
 
 /// quadtree mutators
 
-static Node *generate_node();
+static Node *generate_node( Node *parent );
 static void empty_node( Node *node );
 static void delete_node( Node *node );
 static void subdivide_node( Node *node );
@@ -146,9 +146,13 @@ static void establish_node_coverage_chain( Node *node );
 static PerspectiveObject *get_node_object( Node *node );
 static void set_domain_boundary_visibility( boolval domain_root, boolval visibility, Node *node );
 static void set_domain_root_boundary_visibility( boolval visibility, Node *node );
+static void evaluate_child_node_neighbors( Node *parent_node, size_t child_index, Node **destination );
+static int get_node_index( Node *node );
+static int get_neighbor_opposite_direction( int dir );
+static void update_node_neighbors( Node *node );
 
 // generates a node
-static Node *generate_node()
+static Node *generate_node( Node *parent )
 {
 	//Node *node = malloc( sizeof( Node ) );
 	Node *node = get_mem_pool_buffer( "Node" );
@@ -156,8 +160,8 @@ static Node *generate_node()
 	node->state = NODE_STATE_EMPTY;
 	node->data = NULL;
 	node->covered = false;
-	node->parent = NULL;
-	memset( &node->neighbors, 0, sizeof( Node* ) * 4 );
+	node->parent = parent;
+	update_node_neighbors( node );
 
 	return node;	
 }
@@ -242,7 +246,7 @@ static void subdivide_node( Node *node )
 	
 	for ( size_t i = 0; i < 4; ++i )
 	{
-		Node *child_node = generate_node();
+		Node *child_node = generate_node( node );
 		child_node->parent = node;
 		*( ( Node** ) node->data + i ) = child_node;
 	}
@@ -403,13 +407,84 @@ static void request_node_terrain_generation( Node* node, int x_coord, int z_coor
 	}
 }
 
+// gives the same-level neighbors for a child node specified using a parent node and the child node's index
+static void evaluate_child_node_neighbors( Node *parent_node, size_t child_index, Node **destination )
+{
+	int child_x_coord = child_index % 2;
+	int child_z_coord = ( child_index - child_x_coord ) / 2;
+
+	Node **parent_neighbors = parent_node->neighbors;
+
+	destination[ 0 ] = child_z_coord == 0 ? 
+			( 
+				parent_neighbors[ 0 ] && parent_neighbors[ 0 ]->type == NODE_TYPE_MANIFOLD 
+				? *( ( Node** ) parent_neighbors[ 0 ]->data + 2 + child_x_coord ) 
+				: NULL 
+			) 
+		: *( ( Node** ) parent_node->data + child_x_coord );
+
+	destination[ 1 ] = child_x_coord == 1 ? 
+			( 
+				parent_neighbors[ 1 ] && parent_neighbors[ 1 ]->type == NODE_TYPE_MANIFOLD 
+				? *( ( Node** ) parent_neighbors[ 1 ]->data + 2 * child_z_coord ) 
+				: NULL 
+			) 
+		: *( ( Node** ) parent_node->data + child_index + 1 );
+
+	destination[ 2 ] = child_z_coord == 1 ? 
+			( 
+				parent_neighbors[ 2 ] && parent_neighbors[ 2 ]->type == NODE_TYPE_MANIFOLD 
+				? *( ( Node** ) parent_neighbors[ 2 ]->data + child_x_coord ) 
+				: NULL 
+			) 
+		: *( ( Node** ) parent_node->data + 2 + child_x_coord );
+
+	destination[ 3 ] = child_x_coord == 0 ? 
+			( 
+				parent_neighbors[ 3 ] && parent_neighbors[ 3 ]->type == NODE_TYPE_MANIFOLD 
+				? *( ( Node** ) parent_neighbors[ 3 ]->data + 2 * child_z_coord + 1 ) 
+				: NULL 
+			) 
+		: *( ( Node** ) parent_node->data + child_index - 1 );
+}
+
+// returns the node's child index, -1 if error.
+static int get_node_index( Node *node )
+{
+	Node *parent = node->parent;
+	if ( !parent || parent->type != NODE_TYPE_MANIFOLD ) return -1;
+	for ( size_t i = 0; i < 4; ++i )
+	{
+		if ( ( ( Node* ) node->data + i ) == node  ) return i;
+	}	
+	return -1;
+}
+
+// returns the neighbor index representing the opposite direction
+static int get_neighbor_opposite_direction( int dir )
+{
+	return ( dir + 2 ) % 4;
+}
+
+// updates a node's neighbor's and its neighbor's information
+static void update_node_neighbors( Node *node )
+{
+	evaluate_child_node_neighbors( node->parent, get_node_index( node ), node->neighbors );	
+
+	for ( size_t i = 0; i < 4; ++i )
+	{
+		Node *neighbor = node->neighbors[ i ];
+		if ( neighbor ){
+			neighbor->neighbors[ get_neighbor_opposite_direction( i ) ] = node;
+		}
+	}
+}
+
 /// terrain control
 
-static void poll_node( Node *node, int x_coord, int z_coord, size_t level, boolval top_covered, Node *neighbors[ 4 ] )
+static void poll_node( Node *node, int x_coord, int z_coord, size_t level, boolval top_covered )
 {
 	size_t target_level = get_quad_level( x_coord, z_coord, level );
-
-	memcpy( node->neighbors, neighbors, sizeof( Node* ) * 4 );
 
 	if ( level < target_level )
 	{
@@ -430,44 +505,13 @@ static void poll_node( Node *node, int x_coord, int z_coord, size_t level, boolv
 			Node *child_node = *( ( Node** ) node->data + i );
 			int child_x_coord = i % 2;
 			int child_z_coord = ( i - child_x_coord ) / 2;
-			Node *child_neighbors[ 4 ] = {
-				child_z_coord == 0 ? 
-					( 
-						neighbors[ 0 ] && neighbors[ 0 ]->type == NODE_TYPE_MANIFOLD 
-						? *( ( Node** ) neighbors[ 0 ]->data + 2 + child_x_coord ) 
-						: NULL 
-					) 
-				: *( ( Node** ) node->data + child_x_coord ),
-				child_x_coord == 1 ? 
-					( 
-						neighbors[ 1 ] && neighbors[ 1 ]->type == NODE_TYPE_MANIFOLD 
-						? *( ( Node** ) neighbors[ 1 ]->data + 2 * child_z_coord ) 
-						: NULL 
-					) 
-				: *( ( Node** ) node->data + i + 1 ),
-				child_z_coord == 1 ? 
-					( 
-						neighbors[ 2 ] && neighbors[ 2 ]->type == NODE_TYPE_MANIFOLD 
-						? *( ( Node** ) neighbors[ 2 ]->data + child_x_coord ) 
-						: NULL 
-					) 
-				: *( ( Node** ) node->data + 2 + child_x_coord ),
-				child_x_coord == 0 ? 
-					( 
-						neighbors[ 3 ] && neighbors[ 3 ]->type == NODE_TYPE_MANIFOLD 
-						? *( ( Node** ) neighbors[ 3 ]->data + 2 * child_z_coord + 1 ) 
-						: NULL 
-					) 
-				: *( ( Node** ) node->data + i - 1 )
-			};
 
 			poll_node( 
 				child_node, 
 				x_coord * 2 + child_x_coord, 
 				z_coord * 2 + child_z_coord, 
 				level + 1, 
-				top_covered || node->state == NODE_STATE_CHUNK,
-				child_neighbors
+				top_covered || node->state == NODE_STATE_CHUNK
 			);
 		}
 	}else if ( level == target_level ) {
@@ -508,11 +552,9 @@ void terminate_quadtree()
 	remove_mem_pool( "Node" );
 }
 
-static const Node *g_empty_neighbors[ 4 ] = { NULL };
-
 void poll_quadtree()
 {
-	poll_node( &g_quadtree_root, 0, 0, 0, false, ( Node ** ) g_empty_neighbors );
+	poll_node( &g_quadtree_root, 0, 0, 0, false );
 }
 
 
