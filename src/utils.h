@@ -39,6 +39,8 @@ GLuint loadTexture(const char* path);
 int min( int a, int b );
 int max( int a, int b );
 
+float vec2fl_magnitude(Vec2fl in);
+
 Vec3fl vec3fl_normalize(Vec3fl in);
 Vec3fl vec3fl_cross(Vec3fl u, Vec3fl v);
 Vec3fl vec3fl_difference(Vec3fl a, Vec3fl b);

@@ -68,6 +68,7 @@ Vec3fl getQuadNormal(float xCoordsOffset, float zCoordsOffset, int xQuadCoord, i
 	return quadNormal;
 }
 
+// Terrain quads vertices order: first tri NW, SW, SE, second tri NW, SE, NE
 int generateTessellatedQuad(
 	float xCoordsOffset,
 	float zCoordsOffset,

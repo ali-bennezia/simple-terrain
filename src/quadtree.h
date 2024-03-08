@@ -8,7 +8,7 @@ struct PerspectiveObject;
 typedef struct PerspectiveObject PerspectiveObject;
 
 // quadtree mutators
-void push_quadtree_chunk( int x_coord, int z_coord, size_t level, PerspectiveObject *obj );
+void push_quadtree_chunk( int x_coord, int z_coord, size_t level, PerspectiveObject *obj, float *vertices, float *normals );
 
 // terrain control
 

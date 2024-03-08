@@ -129,13 +129,20 @@ void poll_generator()
 				NORMALS
 			);
 
-			free( pending_requests[i].vertices );
-			free( pending_requests[i].normals );
+			//free( pending_requests[i].vertices );
+			//free( pending_requests[i].normals );
 
 			requested_terrain->material = &g_defaultTerrainMaterialLit;
 			requested_terrain->vertices = pending_requests[i].verticesCount;
 
-			push_quadtree_chunk( pending_requests[i].x_coord, pending_requests[i].z_coord, pending_requests[i].level, requested_terrain );
+			push_quadtree_chunk( 
+				pending_requests[i].x_coord, 
+				pending_requests[i].z_coord, 
+				pending_requests[i].level, 
+				requested_terrain,
+				pending_requests[i].vertices,
+				pending_requests[i].normals
+			);
 
 			pthread_mutex_unlock( &pending_requests_mtx );
 			return;

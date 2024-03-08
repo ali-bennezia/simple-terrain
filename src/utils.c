@@ -196,6 +196,11 @@ GLuint loadTexture(const char* path)
 	return textureID;
 }
 
+float vec2fl_magnitude(Vec2fl in)
+{
+	return sqrt( in.x * in.x + in.y * in.y );
+}
+
 Vec3fl vec3fl_normalize(Vec3fl in)
 {
 	float magnitude = sqrt(in.x*in.x + in.y*in.y + in.z*in.z);
