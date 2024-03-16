@@ -602,8 +602,6 @@ static void stitch_node_side( Node *node, int x_coord, int z_coord, size_t level
 	side %= 4;
 	PerspectiveObject *obj = get_node_object( node );
 
-	glBindBuffer( GL_ARRAY_BUFFER, obj->meshVBO );	
-
 	size_t quads_per_side = 1 * pow( 2, level ), 
 		start_q, q_next, v1, v2, v3,
 		terrain_quads_per_side_quad = pow( 2, delta_level );
@@ -614,31 +612,31 @@ static void stitch_node_side( Node *node, int x_coord, int z_coord, size_t level
 	switch (side)
 	{
 		case 0:
-			start_q = quads_per_side * ( quads_per_side - 1 );
+			//start_q = quads_per_side * ( quads_per_side - 1 );
+			start_q = 0;
 			q_next = 1;
-			// v1, { v2 | v3 }
-			pairing = true;
-			v1 = 1;
-			v2 = 2;
-			v3 = 4;
+			// { v1 | v2 }, v3 
+			pairing = false;
+			v1 = 0;
+			v2 = 3;
+			v3 = 5;
 			break;
-
 		case 1:
 			start_q = quads_per_side - 1;
 			q_next = quads_per_side;
 			// v1, { v2 | v3 }
 			pairing = true;
 			v1 = 5;
-			v2 = 4;
+			v2 = 3;
 			v3 = 2;
 			break;
 		case 2:
-			start_q = 0;
+			start_q = quads_per_side * ( quads_per_side - 1 );
 			q_next = 1;
 			// { v1 | v2 }, v3
 			pairing = false;
-			v1 = 0;
-			v2 = 3;
+			v1 = 1;
+			v2 = 4;
 			v3 = 5;
 			break;
 		default:
@@ -646,9 +644,9 @@ static void stitch_node_side( Node *node, int x_coord, int z_coord, size_t level
 			q_next = quads_per_side;
 			// { v1 | v2 }, v3
 			pairing = false;
-			v1 = 0;
-			v2 = 3;
-			v3 = 1;
+			v1 = 1;
+			v2 = 4;
+			v3 = 0;
 			break;
 	}
 
@@ -671,8 +669,8 @@ static void stitch_node_side( Node *node, int x_coord, int z_coord, size_t level
 		Vec3fl vertex_slice_first = *( ( Vec3fl* ) node->vertices_cache + vertex_slice_first_index ),
 			vertex_slice_last = *( ( Vec3fl* ) node->vertices_cache + vertex_slice_last_index );
 
-		float vertex_slice_first_distance_quotient = ( 0.0f + ( float ) q ) / ( float ) quads_per_side;
-		float vertex_slice_second_distance_quotient = ( 1.0f + ( float ) q ) / ( float ) quads_per_side;
+		float vertex_slice_first_distance_quotient = ( 0.0f + ( float ) local_q_side_index ) / ( float ) terrain_quads_per_side_quad;
+		float vertex_slice_second_distance_quotient = ( 1.0f + ( float ) local_q_side_index ) / ( float ) terrain_quads_per_side_quad;
 
 		float first_vert_height = vertex_slice_first_distance_quotient * vertex_slice_last.y +
 					( 1.0f - vertex_slice_first_distance_quotient ) * vertex_slice_first.y;
@@ -685,8 +683,8 @@ static void stitch_node_side( Node *node, int x_coord, int z_coord, size_t level
 
 		if ( pairing ){
 			size_t first_vert_index_1 = q_slice_first_vertex_index + v1,
-				first_vert_index_2 = q_slice_first_vertex_index * 6 + v2,
-				last_vert_index = q_slice_last_vertex_index * 6 + v3;
+				first_vert_index_2 = q_slice_first_vertex_index + v2,
+				last_vert_index = q_slice_last_vertex_index + v3;
 
 			size_t first_vert_offset_1 = first_vert_index_1 * sizeof( float ) * 3,
 				first_vert_offset_2 = first_vert_index_2 * sizeof( float ) * 3,
@@ -701,9 +699,9 @@ static void stitch_node_side( Node *node, int x_coord, int z_coord, size_t level
 			glBufferSubData( GL_ARRAY_BUFFER, first_float_offset_2, sizeof( float ), &first_vert_height );
 			glBufferSubData( GL_ARRAY_BUFFER, last_float_offset, sizeof( float ), &second_vert_height );
 		}else{
-			size_t first_vert_index = q_slice_first_vertex_index * 6 + v1,
-				last_vert_index_1 = q_slice_last_vertex_index * 6 + v2,
-				last_vert_index_2 = q_slice_last_vertex_index * 6 + v3;
+			size_t first_vert_index = q_slice_first_vertex_index + v1,
+				last_vert_index_1 = q_slice_last_vertex_index + v2,
+				last_vert_index_2 = q_slice_last_vertex_index + v3;
 
 			size_t first_vert_offset = first_vert_index * sizeof( float ) * 3,
 				last_vert_offset_1 = last_vert_index_1 * sizeof( float ) * 3,
